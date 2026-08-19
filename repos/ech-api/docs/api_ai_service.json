@@ -1,0 +1,5323 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TGO-Tech AI Service",
+    "description": "AI/ML Operations Microservice for TGO-Tech customer service platform",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Health check endpoint.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Check Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams": {
+      "get": {
+        "tags": [
+          "Teams"
+        ],
+        "summary": "List Teams",
+        "description": "List teams for the specified project with filtering and pagination.\n\nProject Scope:\n- Only teams belonging to the provided project_id are returned",
+        "operationId": "list_teams_api_v1_teams_get",
+        "parameters": [
+          {
+            "name": "is_default",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by default team status",
+              "title": "Is Default"
+            },
+            "description": "Filter by default team status"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of items to return",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Number of items to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of items to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of items to skip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Teams Api V1 Teams Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Teams"
+        ],
+        "summary": "Create Team",
+        "description": "Create a new team for the specified project.\n\nTeam Configuration:\n- Specify LLM model in \"provider:model_name\" format\n- Configure team instructions and expected output format\n- Set default team status (only one default per project)\n- Optionally set session identifier for team context",
+        "operationId": "create_team_api_v1_teams_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Team name conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/teams/{team_id}": {
+      "get": {
+        "tags": [
+          "Teams"
+        ],
+        "summary": "Get Team",
+        "description": "Retrieve detailed information about a specific team including\nassociated agents with their tools and collections.\n\n**Agent Details:**\n- Each agent includes their bound tools with configurations\n- Each agent includes their accessible collections\n- Tools show enabled status, permissions, and tool-specific config\n- Collections show metadata and access permissions\n\n**Performance:**\n- Uses efficient eager loading to avoid N+1 query issues\n- Single database query loads team, agents, tools, and collections",
+        "operationId": "get_team_api_v1_teams__team_id__get",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "include_agents",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include associated agents with tools and collections in the response",
+              "default": true,
+              "title": "Include Agents"
+            },
+            "description": "Include associated agents with tools and collections in the response"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamWithDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Team not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Teams"
+        ],
+        "summary": "Update Team",
+        "description": "Update team configuration, instructions, model, or settings.\n\n**Default Team Management:**\n- Setting is_default=true will unset other default teams\n- Only one default team allowed per project",
+        "operationId": "update_team_api_v1_teams__team_id__patch",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Team not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Team name conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Teams"
+        ],
+        "summary": "Delete Team",
+        "description": "Soft delete a team. Associated agents will have their team_id set to null\nbut will remain active.",
+        "operationId": "delete_team_api_v1_teams__team_id__delete",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Team not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/run": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Run Supervisor Agent",
+        "description": "Run the supervisor agent.\n\nResponse content types:\n- application/json: Returned when `payload.stream=false`.\n- text/event-stream (SSE): Returned when `payload.stream=true`.\n\nServer-Sent Events (SSE):\n- Framing: Each SSE is formatted as `event: \u003Ctype\u003E` then `data: \u003Cjson\u003E` followed by a blank line.\n- SSE event names used by this endpoint:\n  - connected: initial connection info\n  - event: domain events encoded as a StreamingEvent JSON object (see structure below)\n  - error: transport/stream errors\n  - disconnected: stream closed\n- StreamingEvent JSON structure (payload of the 'event' SSE):\n  {\n    \"event_type\": \"\u003CEventType\u003E\",\n    \"timestamp\": \"RFC3339\",\n    \"correlation_id\": \"string\",\n    \"request_id\": \"string\",\n    \"severity\": \"info|warning|error|success\",\n    \"data\": { ... event-specific fields ... },\n    \"metadata\": { ... optional key/value metadata ... }\n  }\n- Representative event_type values (see app/models/streaming.py for the full list):\n  - workflow_started, workflow_completed, workflow_failed\n  - agent_content_chunk, agent_tool_call_started, agent_tool_call_completed, agent_response_complete\n  - team_run_started, team_run_content, team_run_completed, team_run_failed\n  - team_member_started, team_member_content, team_member_completed, team_member_failed\n  - team_member_tool_call_started, team_member_tool_call_completed\n- Team event data models (payloads in StreamingEvent.data):\n  - TeamRunLifecycleData: team_id, team_name, run_id, session_id?, message_length?\n  - TeamRunContentData: team_id, team_name, run_id, content?, content_type, reasoning_content?, is_intermediate\n  - TeamRunCompletedData: team_id, team_name, run_id, total_time, content_length?, content?\n  - TeamMemberEventData: team_id, team_name, member_id, member_name, member_role?, run_id, execution_time?, success?, error?, response_length?, content?\n  - TeamMemberContentData: team_id, team_name, member_id, member_name, member_role?, run_id, content_chunk, chunk_index, is_final\n  - TeamMemberToolCallData: team_id, team_name, member_id, member_name, member_role?, run_id, tool_name, tool_call_id?, tool_input?, tool_output?, status, error?\n\nSee the detailed 'Typical event sequence' section below for team-based workflow details.\n\nError handling:\n- Operational errors during streaming are emitted as an `error` event and the stream terminates.\n- If validation errors occur before streaming starts, the response is a non-200 JSON error with an appropriate HTTP status (e.g., 400/404/429/500).\n\nTypical event sequence (including team orchestration):\n1) connected (informational)\n2) event(workflow_started)\n3) zero or more domain events, including:\n   - agent_content_chunk and agent_tool_call_started/completed\n   - team_run_started \u001A team_member_started/team_member_content ... team_member_completed (per member)\n   - team_run_content (intermediate team-level messages)\n   - team_run_completed or team_run_failed\n   - relationship: team_run_started -\u003E team_member_started/team_member_content ... team_member_completed (per member)\n\n4) event(workflow_completed) on success OR event(workflow_failed) on failure\n5) disconnected (stream ends)\n\nError handling:\n- Operational/transport errors during streaming may be emitted as an `error` SSE and the stream terminates.\n- Domain failures are emitted as an `event` SSE whose payload has `event_type: workflow_failed` (severity: error), then the stream closes.\n\nClient guidance:\n- JavaScript: use EventSource and listen to 'event' to handle domain events; parse `event_type` from JSON.\n  const es = new EventSource(url);\n  es.addEventListener('event', (e) =\u003E {\n    const evt = JSON.parse(e.data);\n    switch (evt.event_type) {\n      case 'team_member_content': /* handle text chunk */ break;\n      case 'team_member_tool_call_started': /* ... */ break;\n      case 'team_member_tool_call_completed': /* ... */ break;\n      case 'team_run_started': /* initialize team UI */ break;\n      case 'team_run_content': /* handle intermediate team reasoning */ break;\n      case 'team_run_completed': /* summarize team result */ break;\n      case 'workflow_completed': es.close(); break;\n      case 'workflow_failed': es.close(); break;\n      default: /* optionally log unknown types */ break;\n    }\n  });\n  es.addEventListener('connected', () =\u003E { /* optional: connection ack */ });\n  es.addEventListener('error', () =\u003E { /* close or retry if desired */ });\n  es.addEventListener('disconnected', () =\u003E { /* stream closed */ });\n- Python: use an SSE client (e.g., sseclient or httpx stream) and parse `event:` and `data:` lines, reading `event_type` from JSON.\n\nNotes:\n- Completion can be detected via the 'disconnected' SSE or by seeing domain events `workflow_completed`/`workflow_failed`.\n- For reconnection, carry over `correlation_id`/`request_id` if supported by your integration.",
+        "operationId": "run_supervisor_agent_api_v1_agents_run_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupervisorRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response. Returns JSON when `stream=false` and Server-Sent Events when `stream=true`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupervisorRunResponse"
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Server-Sent Events (SSE) stream. Event names: connected | event | error | disconnected. Domain events use 'event' with a StreamingEvent JSON payload."
+                },
+                "examples": {
+                  "domain_team_member_content": {
+                    "summary": "Team member content chunk (domain event)",
+                    "value": "event: event\ndata: {\"event_type\": \"team_member_content\", \"timestamp\": \"2024-05-01T12:00:01Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"member_id\": \"m-01\", \"member_name\": \"Researcher\", \"member_role\": \"research\", \"run_id\": \"run-abc\", \"content_chunk\": \"Found 3 docs...\", \"chunk_index\": 0, \"is_final\": false}, \"metadata\": {\"phase\": \"team_execution\", \"member_id\": \"m-01\"}}\n\n"
+                  },
+                  "domain_team_member_tool_call_started": {
+                    "summary": "Team member tool call started (domain event)",
+                    "value": "event: event\ndata: {\"event_type\": \"team_member_tool_call_started\", \"timestamp\": \"2024-05-01T12:00:02Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"member_id\": \"m-01\", \"member_name\": \"Researcher\", \"member_role\": \"research\", \"run_id\": \"run-abc\", \"tool_name\": \"search\", \"tool_call_id\": \"tc_01\", \"tool_input\": {\"query\": \"...\"}, \"status\": \"started\"}, \"metadata\": {\"phase\": \"team_execution\", \"member_id\": \"m-01\", \"tool_name\": \"search\"}}\n\n"
+                  },
+                  "domain_team_member_tool_call_completed": {
+                    "summary": "Team member tool call completed (domain event)",
+                    "value": "event: event\ndata: {\"event_type\": \"team_member_tool_call_completed\", \"timestamp\": \"2024-05-01T12:00:03Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"success\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"member_id\": \"m-01\", \"member_name\": \"Researcher\", \"member_role\": \"research\", \"run_id\": \"run-abc\", \"tool_name\": \"search\", \"tool_call_id\": \"tc_01\", \"tool_input\": {\"query\": \"...\"}, \"tool_output\": \"3 results\", \"status\": \"completed\"}, \"metadata\": {\"phase\": \"team_execution\", \"member_id\": \"m-01\", \"tool_name\": \"search\"}}\n\n"
+                  },
+                  "team_run_started": {
+                    "summary": "Team run started (domain event)",
+                    "value": "event: event\ndata: {\"event_type\": \"team_run_started\", \"timestamp\": \"2024-05-01T12:00:01Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"run_id\": \"run-abc\", \"session_id\": \"sess-1\", \"message_length\": 128}, \"metadata\": {\"phase\": \"team_execution\"}}\n\n"
+                  },
+                  "team_run_content": {
+                    "summary": "Team run content (domain event)",
+                    "value": "event: event\ndata: {\"event_type\": \"team_run_content\", \"timestamp\": \"2024-05-01T12:00:04Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"run_id\": \"run-abc\", \"content\": \"Synthesizing findings...\", \"content_type\": \"text\", \"reasoning_content\": \"Selecting best approach...\", \"is_intermediate\": true}, \"metadata\": {\"phase\": \"team_execution\"}}\n\n"
+                  },
+                  "team_member_content": {
+                    "summary": "Team member content chunk (domain event)",
+                    "value": "event: event\ndata: {\"event_type\": \"team_member_content\", \"timestamp\": \"2024-05-01T12:00:02Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"member_id\": \"m-01\", \"member_name\": \"Researcher\", \"member_role\": \"research\", \"run_id\": \"run-abc\", \"content_chunk\": \"Found 3 docs...\", \"chunk_index\": 0, \"is_final\": false}, \"metadata\": {\"phase\": \"team_execution\", \"member_id\": \"m-01\"}}\n\n"
+                  },
+                  "team_run_completed": {
+                    "summary": "Team run completed (domain event)",
+                    "value": "event: event\ndata: {\"event_type\": \"team_run_completed\", \"timestamp\": \"2024-05-01T12:00:05Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"success\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"run_id\": \"run-abc\", \"total_time\": 3.2, \"content_length\": 240}, \"metadata\": {\"agents_consulted\": 2}}\n\n"
+                  },
+                  "error_event": {
+                    "summary": "SSE transport error",
+                    "value": "event: error\ndata: {\"message\": \"Stream error occurred\", \"error\": \"TimeoutError\"}\n\n"
+                  },
+                  "domain_workflow_completed": {
+                    "summary": "Workflow completed (domain event)",
+                    "value": "event: event\ndata: {\"event_type\": \"workflow_completed\", \"timestamp\": \"2024-05-01T12:00:05Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"success\", \"data\": {\"phase\": \"completed\", \"progress_percentage\": 100.0, \"current_step\": \"Workflow completed\", \"total_steps\": 4, \"completed_steps\": 4}, \"metadata\": {\"total_execution_time\": 5.0, \"agents_consulted\": 1}}\n\n"
+                  },
+                  "full_sequence": {
+                    "summary": "Full sequence example",
+                    "value": "event: connected\ndata: {\"message\": \"Stream connected\", \"request_id\": \"req-123\", \"correlation_id\": \"corr-456\"}\n\nevent: event\ndata: {\"event_type\": \"workflow_started\", \"timestamp\": \"2024-05-01T12:00:00Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"request_id\": \"req-123\", \"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"message_length\": 128, \"max_agents\": 3, \"execution_strategy\": \"auto\"}, \"metadata\": {\"phase\": \"initialization\"}}\n\nevent: event\ndata: {\"event_type\": \"team_run_started\", \"timestamp\": \"2024-05-01T12:00:01Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"run_id\": \"run-abc\", \"session_id\": \"sess-1\", \"message_length\": 128}, \"metadata\": {\"phase\": \"team_execution\"}}\n\nevent: event\ndata: {\"event_type\": \"team_member_started\", \"timestamp\": \"2024-05-01T12:00:02Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"member_id\": \"m-01\", \"member_name\": \"Researcher\", \"member_role\": \"research\", \"run_id\": \"run-abc\"}, \"metadata\": {\"phase\": \"team_execution\", \"member_id\": \"m-01\"}}\n\nevent: event\ndata: {\"event_type\": \"team_member_content\", \"timestamp\": \"2024-05-01T12:00:03Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"member_id\": \"m-01\", \"member_name\": \"Researcher\", \"member_role\": \"research\", \"run_id\": \"run-abc\", \"content_chunk\": \"Investigating...\", \"chunk_index\": 0, \"is_final\": false}, \"metadata\": {\"phase\": \"team_execution\", \"member_id\": \"m-01\"}}\n\nevent: event\ndata: {\"event_type\": \"team_member_tool_call_started\", \"timestamp\": \"2024-05-01T12:00:04Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"member_id\": \"m-01\", \"member_name\": \"Researcher\", \"member_role\": \"research\", \"run_id\": \"run-abc\", \"tool_name\": \"search\", \"tool_call_id\": \"tc_01\", \"tool_input\": {\"query\": \"error logs\"}, \"status\": \"started\"}, \"metadata\": {\"phase\": \"team_execution\", \"member_id\": \"m-01\", \"tool_name\": \"search\"}}\n\nevent: event\ndata: {\"event_type\": \"team_member_tool_call_completed\", \"timestamp\": \"2024-05-01T12:00:05Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"success\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"member_id\": \"m-01\", \"member_name\": \"Researcher\", \"member_role\": \"research\", \"run_id\": \"run-abc\", \"tool_name\": \"search\", \"tool_call_id\": \"tc_01\", \"tool_input\": {\"query\": \"error logs\"}, \"tool_output\": \"3 results\", \"status\": \"completed\"}, \"metadata\": {\"phase\": \"team_execution\", \"member_id\": \"m-01\", \"tool_name\": \"search\"}}\n\nevent: event\ndata: {\"event_type\": \"team_member_completed\", \"timestamp\": \"2024-05-01T12:00:06Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"success\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"member_id\": \"m-01\", \"member_name\": \"Researcher\", \"member_role\": \"research\", \"run_id\": \"run-abc\", \"execution_time\": 1.25, \"success\": true, \"response_length\": 240}, \"metadata\": {\"phase\": \"team_execution\"}}\n\nevent: event\ndata: {\"event_type\": \"team_run_content\", \"timestamp\": \"2024-05-01T12:00:06.500Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"run_id\": \"run-abc\", \"content\": \"Aggregating member outputs...\", \"content_type\": \"text\", \"reasoning_content\": \"Comparing alternatives...\", \"is_intermediate\": true}, \"metadata\": {\"phase\": \"team_execution\"}}\n\nevent: event\ndata: {\"event_type\": \"team_run_completed\", \"timestamp\": \"2024-05-01T12:00:07Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"success\", \"data\": {\"team_id\": \"team-001\", \"team_name\": \"Platform Team\", \"run_id\": \"run-abc\", \"total_time\": 7.2, \"content_length\": 240}, \"metadata\": {\"agents_consulted\": 2}}\n\nevent: event\ndata: {\"event_type\": \"workflow_completed\", \"timestamp\": \"2024-05-01T12:00:08Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"success\", \"data\": {\"phase\": \"completed\", \"progress_percentage\": 100.0, \"current_step\": \"Workflow completed\", \"total_steps\": 4, \"completed_steps\": 4}, \"metadata\": {\"total_execution_time\": 8.0, \"agents_consulted\": 2}}\n\nevent: disconnected\ndata: {\"message\": \"Stream disconnected\"}\n\n"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Team or agent resources not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Agent service rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Agent service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/run/{run_id}/cancel": {
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Cancel Supervisor Run",
+        "description": "Cancel a running supervisor team execution by run_id.\n\nAlways returns 202 Accepted. Body indicates whether a cancel signal was issued.",
+        "operationId": "cancel_supervisor_run_api_v1_agents_run__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CancelRunRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Cancel Supervisor Run Api V1 Agents Run  Run Id  Cancel Post"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/exists": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Check if agents exist for project",
+        "description": "Check if any agents exist for the specified project.\n\nReturns a simple boolean response indicating whether the project has any agents.\nThis is useful for quick existence checks without fetching full agent data.",
+        "operationId": "check_agents_exist_api_v1_agents_exists_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Check Agents Exist Api V1 Agents Exists Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "List Agents",
+        "description": "Retrieve all AI agents for the authenticated project with filtering and pagination.\n\nReturns detailed agent information including associated tools and collections.\n\n**Filtering Options:**\n- Filter by team association\n- Filter by LLM model (provider:model_name format)\n- Filter by default agent status\n- Pagination with configurable limits\n\n**Response Details:**\n- Each agent includes basic information (id, name, model, etc.)\n- Associated tools with their configurations and permissions\n- Associated collections with their metadata\n- Team information if agent is associated with a team\n\n**Project Scope:**\n- Only agents belonging to the specified project_id are returned",
+        "operationId": "list_agents_api_v1_agents_get",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by team ID",
+              "title": "Team Id"
+            },
+            "description": "Filter by team ID"
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by model (provider:model_name, e.g., openai:gpt-4)",
+              "title": "Model"
+            },
+            "description": "Filter by model (provider:model_name, e.g., openai:gpt-4)"
+          },
+          {
+            "name": "is_default",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by default agent status",
+              "title": "Is Default"
+            },
+            "description": "Filter by default agent status"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of items to return",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Number of items to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of items to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of items to skip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Create Agent",
+        "description": "Create a new AI agent for the authenticated project.\n\n**Agent Configuration:**\n- Specify LLM model in \"provider:model_name\" format\n- Configure system instruction and behavior\n- Bind tools with specific permissions and configurations\n- Associate with teams for organization\n- Set default agent status (only one per project)\n\n**Tool Integration:**\n- Tools specified in \"tool_provider:tool_name\" format\n- Configure permissions and tool-specific settings\n- Enable/disable tools individually\n\n**Project Scope:**\n- Project is provided explicitly via the project_id query parameter\n- Cross-service consistency is maintained",
+        "operationId": "create_agent_api_v1_agents_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced team or collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Agent name conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agent_id}": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Get Agent",
+        "description": "Retrieve detailed information about a specific AI agent including\ntool bindings and collection access if requested.",
+        "operationId": "get_agent_api_v1_agents__agent_id__get",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "include_tools",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include tool bindings in the response",
+              "default": true,
+              "title": "Include Tools"
+            },
+            "description": "Include tool bindings in the response"
+          },
+          {
+            "name": "include_collections",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include collection bindings in the response",
+              "default": false,
+              "title": "Include Collections"
+            },
+            "description": "Include collection bindings in the response"
+          },
+          {
+            "name": "include_workflows",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include workflow bindings in the response",
+              "default": false,
+              "title": "Include Workflows"
+            },
+            "description": "Include workflow bindings in the response"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentWithDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Update Agent",
+        "description": "Update AI agent configuration, tools, or settings.\n\n**Update Capabilities:**\n- Modify agent name, instruction, and model\n- Update team association\n- Reconfigure tool bindings\n- Change default agent status\n- Update agent-specific configuration",
+        "operationId": "update_agent_api_v1_agents__agent_id__patch",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent, team, or collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Agent name conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Delete Agent",
+        "description": "Soft delete an AI agent. The agent will be marked as deleted but\npreserved for audit purposes.",
+        "operationId": "delete_agent_api_v1_agents__agent_id__delete",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agent_id}/tools/{tool_id}/enabled": {
+      "patch": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Set Agent Tool Enabled",
+        "description": "Enable or disable a specific tool binding for an agent.",
+        "operationId": "set_agent_tool_enabled_api_v1_agents__agent_id__tools__tool_id__enabled_patch",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "tool_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tool Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleEnabledRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent or tool binding not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agent_id}/collections/{collection_id}/enabled": {
+      "patch": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Set Agent Collection Enabled",
+        "description": "Enable or disable a specific collection binding for an agent.",
+        "operationId": "set_agent_collection_enabled_api_v1_agents__agent_id__collections__collection_id__enabled_patch",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleEnabledRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent or collection binding not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agent_id}/workflows/{workflow_id}/enabled": {
+      "patch": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Set Agent Workflow Enabled",
+        "description": "Enable or disable a specific workflow binding for an agent.",
+        "operationId": "set_agent_workflow_enabled_api_v1_agents__agent_id__workflows__workflow_id__enabled_patch",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleEnabledRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent or workflow binding not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tools": {
+      "get": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "List Tools",
+        "description": "List tools for the specified project with optional filters.",
+        "operationId": "list_tools_api_v1_tools_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          },
+          {
+            "name": "tool_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ToolType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by tool type",
+              "title": "Tool Type"
+            },
+            "description": "Filter by tool type"
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include soft-deleted tools",
+              "default": false,
+              "title": "Include Deleted"
+            },
+            "description": "Include soft-deleted tools"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ToolResponse"
+                  },
+                  "title": "Response List Tools Api V1 Tools Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Create Tool",
+        "description": "Create a new tool for the specified project.",
+        "operationId": "create_tool_api_v1_tools_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tools/{tool_id}": {
+      "patch": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Update Tool",
+        "description": "Update an existing tool for the specified project.",
+        "operationId": "update_tool_api_v1_tools__tool_id__patch",
+        "parameters": [
+          {
+            "name": "tool_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tool Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Delete Tool",
+        "description": "Soft-delete a tool by setting its deleted_at timestamp.",
+        "operationId": "delete_tool_api_v1_tools__tool_id__delete",
+        "parameters": [
+          {
+            "name": "tool_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tool Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/completions": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Create chat completion",
+        "description": "Create a chat completion using the specified LLM provider.\n\nThis endpoint is fully compatible with OpenAI's Chat Completions API format,\nwith the addition of `provider_id` for selecting LLM provider credentials.\n\n**Request Parameters:**\n- `provider_id` (UUID): The ID of the LLM provider to use (from ai_llm_providers table)\n- `model` (string): The model identifier (e.g., \"gpt-4\", \"claude-3-opus\", \"gemini-pro\")\n- `messages`: Array of conversation messages\n- `stream`: Whether to stream the response (default: false)\n- Other OpenAI-compatible parameters: temperature, max_tokens, etc.\n\n**Provider Support:**\n- `openai` / `openai_compatible`: Uses OpenAI SDK (supports custom base_url for compatible providers)\n- `anthropic`: Uses Anthropic SDK\n- `google`: Uses Google Generative AI SDK\n\n**Streaming Response:**\nWhen `stream=true`, returns Server-Sent Events in OpenAI format:\n```\ndata: {\"id\":\"...\",\"object\":\"chat.completion.chunk\",...}\n\ndata: [DONE]\n```",
+        "operationId": "create_chat_completion_api_v1_chat_completions_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID for authorization",
+              "title": "Project Id"
+            },
+            "description": "Project ID for authorization"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatCompletionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response. Returns JSON when `stream=false` and Server-Sent Events when `stream=true`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionResponse"
+                },
+                "example": {
+                  "id": "chatcmpl-abc123",
+                  "object": "chat.completion",
+                  "created": 1234567890,
+                  "model": "gpt-4",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "message": {
+                        "role": "assistant",
+                        "content": "Hello! How can I help you today?"
+                      },
+                      "finish_reason": "stop"
+                    }
+                  ],
+                  "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 8,
+                    "total_tokens": 18
+                  }
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Server-Sent Events (SSE) stream in OpenAI format."
+                },
+                "examples": {
+                  "streaming_response": {
+                    "summary": "Streaming response example",
+                    "value": "data: {\"id\":\"chatcmpl-abc123\",\"object\":\"chat.completion.chunk\",\"created\":1234567890,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-abc123\",\"object\":\"chat.completion.chunk\",\"created\":1234567890,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-abc123\",\"object\":\"chat.completion.chunk\",\"created\":1234567890,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"!\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-abc123\",\"object\":\"chat.completion.chunk\",\"created\":1234567890,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "LLM provider not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "LLM API call failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/llm-providers/sync": {
+      "post": {
+        "tags": [
+          "LLM Providers"
+        ],
+        "summary": "Bulk upsert LLM Providers",
+        "description": "Upsert LLM Providers. Each item must include id and project_id; if a provider (project_id, alias) exists it will be updated, otherwise created. The id is provided by tgo-api.",
+        "operationId": "sync_llm_providers_api_v1_llm_providers_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LLMProviderSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMProviderSyncResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/project-ai-configs/sync": {
+      "post": {
+        "tags": [
+          "Project AI Configs"
+        ],
+        "summary": "Bulk upsert Project AI Configs",
+        "description": "Upsert project-level default AI model configs. Accepts a list of configs; each item uses project_id as the primary key. If a config exists it will be updated; otherwise created. Intended for internal service-to-service sync from tgo-api.",
+        "operationId": "sync_project_ai_configs_api_v1_project_ai_configs_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectAIConfigSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAIConfigSyncResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/project-ai-configs": {
+      "put": {
+        "tags": [
+          "Project AI Configs"
+        ],
+        "summary": "Upsert a single Project AI Config",
+        "description": "Upsert a single project-level default AI model config. Uses project_id as the key. Returns 201 if created, 200 if updated. Intended for internal service-to-service sync from tgo-api.",
+        "operationId": "upsert_project_ai_config_api_v1_project_ai_configs_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectAIConfigUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAIConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Agent name",
+            "examples": [
+              "Customer Support Agent"
+            ]
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction",
+            "description": "Agent system instruction",
+            "examples": [
+              "You are a helpful customer support agent..."
+            ]
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Model",
+            "description": "LLM model with provider",
+            "examples": [
+              "claude-3-sonnet-20240229"
+            ]
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "description": "Whether this should be the default agent (only one per project)",
+            "default": false
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Agent configuration (temperature, max_tokens, etc.)",
+            "examples": [
+              {
+                "max_tokens": 2000,
+                "temperature": 0.7
+              }
+            ]
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id",
+            "description": "Team ID to associate the agent with (optional)"
+          },
+          "llm_provider_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider Id",
+            "description": "LLM provider (credentials) ID to use for this agent; overrides team-level provider if set"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AgentToolCreate"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "Tools to bind to the agent"
+          },
+          "collections": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collections",
+            "description": "Collection IDs to associate with the agent (UUID strings)",
+            "examples": [
+              [
+                "123e4567-e89b-12d3-a456-426614174000",
+                "987fcdeb-51a2-43d1-9f6e-123456789abc"
+              ]
+            ]
+          },
+          "workflows": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflows",
+            "description": "Workflow IDs to associate with the agent (UUID strings)",
+            "examples": [
+              [
+                "123e4567-e89b-12d3-a456-426614174000",
+                "987fcdeb-51a2-43d1-9f6e-123456789abc"
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "model"
+        ],
+        "title": "AgentCreate",
+        "description": "Schema for creating a new agent."
+      },
+      "AgentExecutionResult": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Agent Id",
+            "description": "UUID of the executed agent"
+          },
+          "agent_name": {
+            "type": "string",
+            "title": "Agent Name",
+            "description": "Name of the executed agent"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question",
+            "description": "Question asked to the agent"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "Agent's response content"
+          },
+          "tools_used": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools Used",
+            "description": "List of tools used by the agent"
+          },
+          "execution_time": {
+            "type": "number",
+            "minimum": 0,
+            "title": "Execution Time",
+            "description": "Execution time in seconds"
+          },
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether execution was successful",
+            "default": true
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Error message if execution failed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "agent_id",
+          "agent_name",
+          "question",
+          "content",
+          "execution_time"
+        ],
+        "title": "AgentExecutionResult",
+        "description": "Result from a single agent execution."
+      },
+      "AgentListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AgentWithDetails"
+            },
+            "type": "array",
+            "title": "Data",
+            "description": "List of items"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMetadata",
+            "description": "Pagination metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "pagination"
+        ],
+        "title": "AgentListResponse",
+        "description": "Paginated response model for agent list endpoint with detailed agent information."
+      },
+      "AgentResponse": {
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Record creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Record last update timestamp"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique identifier"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Agent name",
+            "examples": [
+              "Customer Support Agent"
+            ]
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction",
+            "description": "Agent system instruction",
+            "examples": [
+              "You are a helpful customer support agent..."
+            ]
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Model",
+            "description": "LLM model with provider",
+            "examples": [
+              "claude-3-sonnet-20240229"
+            ]
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "description": "Whether this should be the default agent (only one per project)",
+            "default": false
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Agent configuration (temperature, max_tokens, etc.)",
+            "examples": [
+              {
+                "max_tokens": 2000,
+                "temperature": 0.7
+              }
+            ]
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id",
+            "description": "Associated team ID"
+          },
+          "llm_provider_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider Id",
+            "description": "Associated LLM provider (credentials) ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created_at",
+          "updated_at",
+          "id",
+          "name",
+          "model"
+        ],
+        "title": "AgentResponse",
+        "description": "Schema for agent API responses."
+      },
+      "AgentToolCreate": {
+        "properties": {
+          "tool_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tool Id",
+            "description": "Tool ID (UUID) to bind to the agent",
+            "examples": [
+              "123e4567-e89b-12d3-a456-426614174000"
+            ]
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether tool is enabled for this agent",
+            "default": true
+          },
+          "permissions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permissions",
+            "description": "Tool permissions array",
+            "examples": [
+              [
+                "read",
+                "write"
+              ]
+            ]
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Tool-specific configuration",
+            "examples": [
+              {
+                "api_endpoint": "https://api.search.com",
+                "timeout": 30
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_id"
+        ],
+        "title": "AgentToolCreate",
+        "description": "Schema for creating agent tool bindings."
+      },
+      "AgentToolDetail": {
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Record creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Record last update timestamp"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique identifier"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "Project ID that owns the tool"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Tool name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional tool description"
+          },
+          "tool_type": {
+            "$ref": "#/components/schemas/ToolType",
+            "description": "Tool type (MCP | FUNCTION)"
+          },
+          "transport_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Type",
+            "description": "Transport type (e.g., http, stdio, sse)"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint",
+            "description": "Endpoint URL or path"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Tool configuration JSON object"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether tool is enabled for this agent",
+            "default": true
+          },
+          "permissions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permissions",
+            "description": "Tool permissions array for this agent"
+          },
+          "agent_tool_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Tool Config",
+            "description": "Agent-specific tool configuration (overrides tool's default config)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created_at",
+          "updated_at",
+          "id",
+          "project_id",
+          "name",
+          "tool_type"
+        ],
+        "title": "AgentToolDetail",
+        "description": "Schema for tool details in agent responses, including agent-specific settings."
+      },
+      "AgentUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Updated agent name"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id",
+            "description": "Updated team ID (set to null to remove from team)"
+          },
+          "llm_provider_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider Id",
+            "description": "Updated LLM provider (credentials) ID (set to null to inherit from team)"
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction",
+            "description": "Updated system instruction"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "Updated LLM model"
+          },
+          "is_default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Default",
+            "description": "Updated default status"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Updated agent configuration"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AgentToolCreate"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "Updated tools to bind to the agent"
+          },
+          "collections": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collections",
+            "description": "Updated collection IDs to associate with the agent (UUID strings). Replaces existing associations.",
+            "examples": [
+              [
+                "123e4567-e89b-12d3-a456-426614174000",
+                "987fcdeb-51a2-43d1-9f6e-123456789abc"
+              ]
+            ]
+          },
+          "workflows": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflows",
+            "description": "Updated workflow IDs to associate with the agent (UUID strings). Replaces existing associations.",
+            "examples": [
+              [
+                "123e4567-e89b-12d3-a456-426614174000",
+                "987fcdeb-51a2-43d1-9f6e-123456789abc"
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "title": "AgentUpdate",
+        "description": "Schema for updating an existing agent."
+      },
+      "AgentWithDetails": {
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Record creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Record last update timestamp"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique identifier"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Agent name",
+            "examples": [
+              "Customer Support Agent"
+            ]
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction",
+            "description": "Agent system instruction",
+            "examples": [
+              "You are a helpful customer support agent..."
+            ]
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Model",
+            "description": "LLM model with provider",
+            "examples": [
+              "claude-3-sonnet-20240229"
+            ]
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "description": "Whether this should be the default agent (only one per project)",
+            "default": false
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Agent configuration (temperature, max_tokens, etc.)",
+            "examples": [
+              {
+                "max_tokens": 2000,
+                "temperature": 0.7
+              }
+            ]
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id",
+            "description": "Associated team ID"
+          },
+          "llm_provider_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider Id",
+            "description": "Associated LLM provider (credentials) ID"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/AgentToolDetail"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "Detailed tool information for bound tools (from ai_tools table)"
+          },
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionResponse"
+            },
+            "type": "array",
+            "title": "Collections",
+            "description": "Collections accessible to this agent"
+          },
+          "workflows": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowResponse"
+            },
+            "type": "array",
+            "title": "Workflows",
+            "description": "Workflows accessible to this agent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created_at",
+          "updated_at",
+          "id",
+          "name",
+          "model"
+        ],
+        "title": "AgentWithDetails",
+        "description": "Schema for agent response with additional details.\n\n- tools: full Tool objects from local database (ai_tools table)\n- collections: RAG collections as before"
+      },
+      "CancelRunRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "Optional reason for cancellation (for auditing/logs)"
+          }
+        },
+        "type": "object",
+        "title": "CancelRunRequest"
+      },
+      "ChatCompletionRequest": {
+        "properties": {
+          "provider_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Provider Id",
+            "description": "UUID of the LLM provider to use (from ai_llm_providers table)"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Model identifier (e.g., 'gpt-4', 'claude-3-opus', 'gemini-pro')"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Messages",
+            "description": "A list of messages comprising the conversation"
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "description": "Whether to stream partial message deltas",
+            "default": false
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2,
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature",
+            "description": "Sampling temperature (0-2)"
+          },
+          "top_p": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1,
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top P",
+            "description": "Nucleus sampling parameter"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10,
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N",
+            "description": "Number of completions to generate",
+            "default": 1
+          },
+          "max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tokens",
+            "description": "Maximum number of tokens to generate"
+          },
+          "stop": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop",
+            "description": "Stop sequences"
+          },
+          "presence_penalty": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2,
+                "minimum": -2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presence Penalty",
+            "description": "Presence penalty (-2 to 2)"
+          },
+          "frequency_penalty": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2,
+                "minimum": -2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency Penalty",
+            "description": "Frequency penalty (-2 to 2)"
+          },
+          "logit_bias": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logit Bias",
+            "description": "Token logit bias"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User",
+            "description": "A unique identifier for the end-user"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ToolDefinition"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "A list of tools the model may call"
+          },
+          "tool_choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Choice",
+            "description": "Controls which tool is called"
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseFormat"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response format specification"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed",
+            "description": "Random seed for deterministic outputs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_id",
+          "model",
+          "messages"
+        ],
+        "title": "ChatCompletionRequest",
+        "description": "OpenAI-compatible chat completion request with provider_id extension.\n\nThis request schema is fully compatible with OpenAI's Chat Completions API,\nwith the addition of provider_id for selecting LLM provider credentials."
+      },
+      "ChatCompletionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Unique identifier for the completion"
+          },
+          "object": {
+            "type": "string",
+            "const": "chat.completion",
+            "title": "Object",
+            "description": "Object type",
+            "default": "chat.completion"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created",
+            "description": "Unix timestamp of creation"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "The model used for completion"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array",
+            "title": "Choices",
+            "description": "List of completion choices"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Usage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Token usage statistics"
+          },
+          "system_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Fingerprint",
+            "description": "System fingerprint for reproducibility"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "choices"
+        ],
+        "title": "ChatCompletionResponse",
+        "description": "OpenAI-compatible chat completion response."
+      },
+      "ChatMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant",
+              "tool"
+            ],
+            "title": "Role",
+            "description": "The role of the message author"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content",
+            "description": "The content of the message"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the author (for user/assistant)"
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ToolCall"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Calls",
+            "description": "Tool calls made by the assistant"
+          },
+          "tool_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Call Id",
+            "description": "The ID of the tool call this message is responding to"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "ChatMessage",
+        "description": "A message in the chat conversation."
+      },
+      "Choice": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "description": "The index of the choice"
+          },
+          "message": {
+            "$ref": "#/components/schemas/ChoiceMessage",
+            "description": "The generated message"
+          },
+          "finish_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "stop",
+                  "length",
+                  "tool_calls",
+                  "content_filter"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finish Reason",
+            "description": "The reason the model stopped generating"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "message"
+        ],
+        "title": "Choice",
+        "description": "A completion choice."
+      },
+      "ChoiceMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "const": "assistant",
+            "title": "Role",
+            "description": "The role of the author",
+            "default": "assistant"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content",
+            "description": "The content of the message"
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ToolCall"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Calls",
+            "description": "Tool calls made by the assistant"
+          }
+        },
+        "type": "object",
+        "title": "ChoiceMessage",
+        "description": "Message in a completion choice."
+      },
+      "CollectionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Collection ID"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name",
+            "description": "Human-readable collection name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Collection description"
+          },
+          "collection_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Metadata",
+            "description": "Collection metadata (embedding model, chunk size, etc.)"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "description": "Creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "description": "Last update timestamp"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Deletion timestamp"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled",
+            "description": "Whether this collection is enabled for the current agent binding"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CollectionResponse",
+        "description": "Schema for collection API responses from RAG service."
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique request identifier for tracking"
+          }
+        },
+        "required": [
+          "error",
+          "request_id"
+        ]
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Error code",
+            "examples": [
+              "TEAM_NOT_FOUND",
+              "AGENT_NOT_FOUND",
+              "AUTHENTICATION_FAILED"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message",
+            "examples": [
+              "The specified team was not found"
+            ]
+          },
+          "details": {
+            "type": "object",
+            "nullable": true,
+            "description": "Additional error context and details",
+            "examples": [
+              {
+                "team_id": "123e4567-e89b-12d3-a456-426614174000"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "details"
+        ]
+      },
+      "FunctionCall": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the function to call"
+          },
+          "arguments": {
+            "type": "string",
+            "title": "Arguments",
+            "description": "JSON string of function arguments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "arguments"
+        ],
+        "title": "FunctionCall",
+        "description": "Function call in a message."
+      },
+      "FunctionDefinition": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the function"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "A description of what the function does"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters",
+            "description": "JSON Schema for the function parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "FunctionDefinition",
+        "description": "Definition of a function that can be called."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LLMProviderResponse": {
+        "properties": {
+          "provider_kind": {
+            "type": "string",
+            "title": "Provider Kind",
+            "description": "openai | anthropic | google | openai_compatible"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor",
+            "description": "Vendor label, e.g. deepseek"
+          },
+          "api_base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Base Url",
+            "description": "Custom API base URL for compatible vendors"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization",
+            "description": "Organization/Tenant identifier"
+          },
+          "timeout": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout",
+            "description": "Request timeout seconds"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Whether provider is active",
+            "default": true
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "alias": {
+            "type": "string",
+            "title": "Alias"
+          },
+          "api_key_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key Masked",
+            "description": "Masked API key"
+          },
+          "synced_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Synced At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_kind",
+          "id",
+          "alias",
+          "synced_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "LLMProviderResponse"
+      },
+      "LLMProviderSyncRequest": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/LLMProviderUpsert"
+            },
+            "type": "array",
+            "title": "Providers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "providers"
+        ],
+        "title": "LLMProviderSyncRequest",
+        "examples": [
+          {
+            "providers": [
+              {
+                "alias": "openai-prod",
+                "api_key": "sk_...",
+                "id": "11111111-1111-1111-1111-111111111111",
+                "project_id": "00000000-0000-0000-0000-000000000000",
+                "provider_kind": "openai",
+                "vendor": "openai"
+              },
+              {
+                "alias": "deepseek",
+                "api_base_url": "https://api.deepseek.com/v1",
+                "api_key": "ds_...",
+                "id": "22222222-2222-2222-2222-222222222222",
+                "project_id": "00000000-0000-0000-0000-000000000000",
+                "provider_kind": "openai_compatible",
+                "vendor": "deepseek"
+              }
+            ]
+          }
+        ]
+      },
+      "LLMProviderSyncResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/LLMProviderResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "LLMProviderSyncResponse"
+      },
+      "LLMProviderUpsert": {
+        "properties": {
+          "provider_kind": {
+            "type": "string",
+            "title": "Provider Kind",
+            "description": "openai | anthropic | google | openai_compatible"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor",
+            "description": "Vendor label, e.g. deepseek"
+          },
+          "api_base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Base Url",
+            "description": "Custom API base URL for compatible vendors"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization",
+            "description": "Organization/Tenant identifier"
+          },
+          "timeout": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout",
+            "description": "Request timeout seconds"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Whether provider is active",
+            "default": true
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "Project ID owning this provider"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Primary key UUID provided by tgo-api"
+          },
+          "alias": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Alias"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "API key (write-only)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_kind",
+          "project_id",
+          "id",
+          "alias"
+        ],
+        "title": "LLMProviderUpsert",
+        "examples": [
+          {
+            "alias": "openai-prod",
+            "api_key": "sk_...",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "is_active": true,
+            "project_id": "00000000-0000-0000-0000-000000000000",
+            "provider_kind": "openai",
+            "timeout": 30,
+            "vendor": "openai"
+          }
+        ]
+      },
+      "PaginationMetadata": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Total",
+            "description": "Total number of items"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Limit",
+            "description": "Number of items per page"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Offset",
+            "description": "Number of items skipped"
+          },
+          "has_next": {
+            "type": "boolean",
+            "title": "Has Next",
+            "description": "Whether there are more items"
+          },
+          "has_prev": {
+            "type": "boolean",
+            "title": "Has Prev",
+            "description": "Whether there are previous items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "has_next",
+          "has_prev"
+        ],
+        "title": "PaginationMetadata",
+        "description": "Pagination metadata for list responses."
+      },
+      "ProjectAIConfigResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "default_chat_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Chat Provider Id"
+          },
+          "default_chat_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Chat Model"
+          },
+          "default_embedding_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Embedding Provider Id"
+          },
+          "default_embedding_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Embedding Model"
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          },
+          "sync_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sync Status"
+          },
+          "sync_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sync Error"
+          },
+          "sync_attempt_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sync Attempt Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProjectAIConfigResponse"
+      },
+      "ProjectAIConfigSyncRequest": {
+        "properties": {
+          "configs": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectAIConfigUpsert"
+            },
+            "type": "array",
+            "title": "Configs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "configs"
+        ],
+        "title": "ProjectAIConfigSyncRequest",
+        "examples": [
+          {
+            "configs": [
+              {
+                "default_chat_model": "gpt-4o",
+                "default_chat_provider_id": "11111111-1111-1111-1111-111111111111",
+                "default_embedding_model": "text-embedding-3-large",
+                "default_embedding_provider_id": "22222222-2222-2222-2222-222222222222",
+                "project_id": "00000000-0000-0000-0000-000000000000"
+              }
+            ]
+          }
+        ]
+      },
+      "ProjectAIConfigSyncResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectAIConfigResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ProjectAIConfigSyncResponse"
+      },
+      "ProjectAIConfigUpsert": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "Project UUID (primary key)"
+          },
+          "default_chat_provider_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Chat Provider Id"
+          },
+          "default_chat_model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Chat Model"
+          },
+          "default_embedding_provider_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Embedding Provider Id"
+          },
+          "default_embedding_model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Embedding Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "title": "ProjectAIConfigUpsert",
+        "examples": [
+          {
+            "default_chat_model": "gpt-4o",
+            "default_chat_provider_id": "11111111-1111-1111-1111-111111111111",
+            "default_embedding_model": "text-embedding-3-large",
+            "default_embedding_provider_id": "22222222-2222-2222-2222-222222222222",
+            "project_id": "00000000-0000-0000-0000-000000000000"
+          }
+        ]
+      },
+      "ResponseFormat": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "json_object"
+            ],
+            "title": "Type",
+            "description": "The format of the response",
+            "default": "text"
+          }
+        },
+        "type": "object",
+        "title": "ResponseFormat",
+        "description": "Response format specification."
+      },
+      "SupervisorConfig": {
+        "properties": {
+          "execution_strategy": {
+            "type": "string",
+            "enum": [
+              "single",
+              "multiple",
+              "auto"
+            ],
+            "title": "Execution Strategy",
+            "description": "Strategy for agent selection and execution",
+            "default": "auto"
+          },
+          "max_agents": {
+            "type": "integer",
+            "maximum": 10,
+            "minimum": 1,
+            "title": "Max Agents",
+            "description": "Maximum number of agents to execute",
+            "default": 3
+          },
+          "timeout": {
+            "type": "integer",
+            "maximum": 300,
+            "minimum": 5,
+            "title": "Timeout",
+            "description": "Timeout for agent execution in seconds",
+            "default": 30
+          },
+          "require_consensus": {
+            "type": "boolean",
+            "title": "Require Consensus",
+            "description": "Whether to require consensus among multiple agents",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SupervisorConfig",
+        "description": "Configuration options for supervisor execution."
+      },
+      "SupervisorMetadata": {
+        "properties": {
+          "total_execution_time": {
+            "type": "number",
+            "minimum": 0,
+            "title": "Total Execution Time",
+            "description": "Total execution time in seconds"
+          },
+          "agents_consulted": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Agents Consulted",
+            "description": "Number of agents that were consulted"
+          },
+          "strategy_used": {
+            "type": "string",
+            "title": "Strategy Used",
+            "description": "Execution strategy that was applied"
+          },
+          "team_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Team Id",
+            "description": "Team ID used for coordination"
+          },
+          "consensus_achieved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consensus Achieved",
+            "description": "Whether consensus was achieved (if applicable)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "total_execution_time",
+          "agents_consulted",
+          "strategy_used",
+          "team_id"
+        ],
+        "title": "SupervisorMetadata",
+        "description": "Metadata about the supervisor execution."
+      },
+      "SupervisorRunRequest": {
+        "properties": {
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id",
+            "description": "UUID of the team to coordinate agents from (defaults to the project's default team if omitted)"
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id",
+            "description": "UUID of a specific agent to use. If set, the team will only contain this agent. Deprecated: use agent_ids instead."
+          },
+          "agent_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Ids",
+            "description": "List of agent UUIDs to use. If set, the team will only contain these agents. Takes precedence over agent_id."
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Message",
+            "description": "User message to be processed by the agents"
+          },
+          "system_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Message",
+            "description": "Optional custom system message to append to the team's system instructions for this run"
+          },
+          "expected_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Output",
+            "description": "Optional expected output format that guides the team response for this run"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "Session ID for conversation tracking"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "User ID for authentication and token management"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupervisorConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Configuration options for supervisor execution"
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "description": "Enable streaming response with real-time events",
+            "default": false
+          },
+          "mcp_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mcp Url",
+            "description": "URL of the MCP server for tool integration"
+          },
+          "rag_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rag Url",
+            "description": "URL of the RAG server for retrieval-augmented generation"
+          },
+          "enable_memory": {
+            "type": "boolean",
+            "title": "Enable Memory",
+            "description": "Enable conversational memory for participating agents",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "SupervisorRunRequest",
+        "description": "Request payload for the supervisor agent /run endpoint."
+      },
+      "SupervisorRunResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the request was successful",
+            "default": true
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Human-readable status message"
+          },
+          "results": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AgentExecutionResult"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Results",
+            "description": "Results from individual agent executions"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "Consolidated response from all agents"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/SupervisorMetadata",
+            "description": "Metadata about the execution"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Error message if success is false"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "message",
+          "content",
+          "metadata"
+        ],
+        "title": "SupervisorRunResponse",
+        "description": "Non-streaming response payload from the supervisor agent /run endpoint."
+      },
+      "TeamCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Team name",
+            "examples": [
+              "Customer Support Team"
+            ]
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "LLM model",
+            "examples": [
+              "claude-3-sonnet-20240229"
+            ]
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction",
+            "description": "Team system prompt/instructions",
+            "examples": [
+              "You are a customer support team focused on resolving user issues efficiently..."
+            ]
+          },
+          "expected_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Output",
+            "description": "Expected output format description",
+            "examples": [
+              "Provide clear, actionable solutions with step-by-step instructions"
+            ]
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "Team session identifier",
+            "examples": [
+              "cs-team-session-2024"
+            ]
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "description": "Whether this should be the default team (only one per project)",
+            "default": false
+          },
+          "llm_provider_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider Id",
+            "description": "LLM provider (credentials) ID to use for this team"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TeamCreate",
+        "description": "Schema for creating a new team."
+      },
+      "TeamResponse": {
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Record creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Record last update timestamp"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique identifier"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Team name",
+            "examples": [
+              "Customer Support Team"
+            ]
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "LLM model",
+            "examples": [
+              "claude-3-sonnet-20240229"
+            ]
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction",
+            "description": "Team system prompt/instructions",
+            "examples": [
+              "You are a customer support team focused on resolving user issues efficiently..."
+            ]
+          },
+          "expected_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Output",
+            "description": "Expected output format description",
+            "examples": [
+              "Provide clear, actionable solutions with step-by-step instructions"
+            ]
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "Team session identifier",
+            "examples": [
+              "cs-team-session-2024"
+            ]
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "description": "Whether this should be the default team (only one per project)",
+            "default": false
+          },
+          "llm_provider_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider Id",
+            "description": "Associated LLM provider (credentials) ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created_at",
+          "updated_at",
+          "id",
+          "name"
+        ],
+        "title": "TeamResponse",
+        "description": "Schema for team API responses."
+      },
+      "TeamUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Updated team name"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "Updated LLM model"
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction",
+            "description": "Updated team instructions"
+          },
+          "expected_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Output",
+            "description": "Updated expected output format"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "Updated session identifier"
+          },
+          "is_default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Default",
+            "description": "Updated default status"
+          },
+          "llm_provider_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider Id",
+            "description": "Updated LLM provider (credentials) ID"
+          }
+        },
+        "type": "object",
+        "title": "TeamUpdate",
+        "description": "Schema for updating an existing team."
+      },
+      "TeamWithDetails": {
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Record creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Record last update timestamp"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique identifier"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Team name",
+            "examples": [
+              "Customer Support Team"
+            ]
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "LLM model",
+            "examples": [
+              "claude-3-sonnet-20240229"
+            ]
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction",
+            "description": "Team system prompt/instructions",
+            "examples": [
+              "You are a customer support team focused on resolving user issues efficiently..."
+            ]
+          },
+          "expected_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Output",
+            "description": "Expected output format description",
+            "examples": [
+              "Provide clear, actionable solutions with step-by-step instructions"
+            ]
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "Team session identifier",
+            "examples": [
+              "cs-team-session-2024"
+            ]
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "description": "Whether this should be the default team (only one per project)",
+            "default": false
+          },
+          "llm_provider_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Provider Id",
+            "description": "Associated LLM provider (credentials) ID"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentWithDetails"
+            },
+            "type": "array",
+            "title": "Agents",
+            "description": "Agents belonging to this team with their tools and collections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created_at",
+          "updated_at",
+          "id",
+          "name"
+        ],
+        "title": "TeamWithDetails",
+        "description": "Schema for team response with additional details."
+      },
+      "ToggleEnabledRequest": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether the binding should be enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "ToggleEnabledRequest",
+        "description": "Generic request to toggle enabled state for a binding."
+      },
+      "ToolCall": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the tool call"
+          },
+          "type": {
+            "type": "string",
+            "const": "function",
+            "title": "Type",
+            "description": "The type of tool call",
+            "default": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/FunctionCall",
+            "description": "The function call details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "function"
+        ],
+        "title": "ToolCall",
+        "description": "Tool call in a message."
+      },
+      "ToolCreate": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "Project ID that owns the tool"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Tool name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional tool description"
+          },
+          "tool_type": {
+            "$ref": "#/components/schemas/ToolType",
+            "description": "Tool type (MCP | FUNCTION)"
+          },
+          "transport_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Type",
+            "description": "Transport type (e.g., http, stdio, sse)"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint",
+            "description": "Endpoint URL or path"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Tool configuration JSON object"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "name",
+          "tool_type"
+        ],
+        "title": "ToolCreate",
+        "description": "Schema for creating tools."
+      },
+      "ToolDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "function",
+            "title": "Type",
+            "description": "The type of tool",
+            "default": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/FunctionDefinition",
+            "description": "The function definition"
+          }
+        },
+        "type": "object",
+        "required": [
+          "function"
+        ],
+        "title": "ToolDefinition",
+        "description": "Definition of a tool that can be used."
+      },
+      "ToolResponse": {
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Record creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Record last update timestamp"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique identifier"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "Project ID that owns the tool"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Tool name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional tool description"
+          },
+          "tool_type": {
+            "$ref": "#/components/schemas/ToolType",
+            "description": "Tool type (MCP | FUNCTION)"
+          },
+          "transport_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Type",
+            "description": "Transport type (e.g., http, stdio, sse)"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint",
+            "description": "Endpoint URL or path"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Tool configuration JSON object"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created_at",
+          "updated_at",
+          "id",
+          "project_id",
+          "name",
+          "tool_type"
+        ],
+        "title": "ToolResponse",
+        "description": "Schema for Tool API responses."
+      },
+      "ToolType": {
+        "type": "string",
+        "enum": [
+          "MCP",
+          "FUNCTION"
+        ],
+        "title": "ToolType",
+        "description": "Tool type enumeration."
+      },
+      "ToolUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Updated tool name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Updated tool description"
+          },
+          "tool_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Updated tool type (MCP | FUNCTION)"
+          },
+          "transport_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Type",
+            "description": "Updated transport type (e.g., http, stdio, sse)"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint",
+            "description": "Updated endpoint URL or path"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Updated tool configuration JSON object"
+          }
+        },
+        "type": "object",
+        "title": "ToolUpdate",
+        "description": "Schema for updating an existing tool."
+      },
+      "Usage": {
+        "properties": {
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens",
+            "description": "Number of tokens in the prompt"
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens",
+            "description": "Number of tokens in the completion"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens",
+            "description": "Total number of tokens used"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens"
+        ],
+        "title": "Usage",
+        "description": "Token usage statistics."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorkflowResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Workflow ID"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Workflow name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Workflow description"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "Workflow tags"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Current status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "Version number"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "description": "Last update time"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether this workflow is enabled for the current agent binding",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "version",
+          "updated_at"
+        ],
+        "title": "WorkflowResponse",
+        "description": "Schema for workflow API responses from Workflow service."
+      }
+    }
+  }
+}

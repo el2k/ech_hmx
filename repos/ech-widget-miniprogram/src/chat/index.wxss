@@ -1,0 +1,92 @@
+.tgo-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #fff;
+}
+
+/* Header */
+.chat-header {
+  display: flex;
+  align-items: center;
+  padding: 0 24rpx;
+  height: 88rpx;
+  flex-shrink: 0;
+}
+
+.header-logo {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 8rpx;
+  margin-right: 12rpx;
+}
+
+.header-title {
+  font-size: 32rpx;
+  color: #fff;
+  font-weight: 600;
+  flex: 1;
+}
+
+.status-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  margin-left: 12rpx;
+}
+
+.status-dot.online {
+  background: #4cd964;
+  box-shadow: 0 0 4rpx rgba(76, 217, 100, 0.6);
+}
+
+.status-dot.offline {
+  background: #ccc;
+}
+
+/* Loading / Error states */
+.init-loading,
+.init-error {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.init-text {
+  font-size: 28rpx;
+  color: #999;
+}
+
+.error-text {
+  font-size: 26rpx;
+  color: #e74c3c;
+  text-align: center;
+  padding: 0 40rpx;
+  margin-bottom: 24rpx;
+}
+
+.retry-btn {
+  padding: 12rpx 48rpx;
+  background: #f0f0f0;
+  border-radius: 32rpx;
+}
+
+.retry-text {
+  font-size: 28rpx;
+  color: #333;
+}
+
+/* Chat body */
+.chat-body {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Footer */
+.chat-footer {
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: #fff;
+}

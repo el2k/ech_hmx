@@ -1,0 +1,40 @@
+.git
+.gitignore
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info
+.eggs
+.build
+dist
+build
+htmlcov
+.coverage*
+.tox
+.mypy_cache
+.pytest_cache
+.env
+.env.*
+*.log
+logs/
+.vscode
+.idea
+.DS_Store
+
+# Virtual envs
+.venv
+venv/
+.envrc
+
+# Docker & Compose artefacts
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# Tests & docs (not needed in runtime image)
+tests/
+docs/
+examples/
+

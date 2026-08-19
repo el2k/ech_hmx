@@ -1,0 +1,7 @@
+{
+  "usingComponents": {
+    "tgo-chat": "tgo-widget-miniprogram/chat/index"
+  },
+  "navigationBarTitleText": "在线客服",
+  "navigationStyle": "custom"
+}

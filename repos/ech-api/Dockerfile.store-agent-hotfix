@@ -1,0 +1,4 @@
+FROM registry.cn-shanghai.aliyuncs.com/tgoai/tgo-api:latest
+
+# Keep the official runtime image and replace only the corrected store endpoint.
+COPY app/api/v1/endpoints/store.py /app/app/api/v1/endpoints/store.py

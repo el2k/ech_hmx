@@ -1,0 +1,43 @@
+{
+  "title": "json-render SpecStream Patch Line",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "op": {
+      "type": "string",
+      "enum": ["add", "remove", "replace", "move", "copy", "test"]
+    },
+    "path": {
+      "type": "string",
+      "pattern": "^/.*"
+    },
+    "from": {
+      "type": "string",
+      "pattern": "^/.*"
+    },
+    "value": {}
+  },
+  "required": ["op", "path"],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "op": { "enum": ["add", "replace", "test"] }
+        }
+      },
+      "then": {
+        "required": ["value"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "op": { "enum": ["move", "copy"] }
+        }
+      },
+      "then": {
+        "required": ["from"]
+      }
+    }
+  ]
+}

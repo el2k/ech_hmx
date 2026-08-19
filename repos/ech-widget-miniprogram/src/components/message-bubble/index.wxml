@@ -1,0 +1,3 @@
+<view class="bubble {{self ? 'bubble-self' : 'bubble-agent'}}" style="{{self ? 'background-color:' + themeColor + ';' : ''}}">
+  <slot />
+</view>

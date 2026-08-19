@@ -1,0 +1,28 @@
+<view class="input-bar">
+  <!-- Image picker button -->
+  <view class="btn-icon" bindtap="onChooseImage">
+    <text class="icon-text">+</text>
+  </view>
+
+  <!-- Text input -->
+  <input
+    class="text-input"
+    value="{{inputValue}}"
+    placeholder="{{placeholder}}"
+    confirm-type="send"
+    bindinput="onInput"
+    bindconfirm="onConfirm"
+    disabled="{{disabled}}"
+    adjust-position="{{true}}"
+    cursor-spacing="16"
+  />
+
+  <!-- Send / Stop button -->
+  <view
+    class="btn-send {{isStreaming ? 'btn-stop' : ''}}"
+    style="background-color: {{themeColor}};"
+    bindtap="onTapSend"
+  >
+    <text class="btn-send-text">{{isStreaming ? interruptLabel : sendLabel}}</text>
+  </view>
+</view>

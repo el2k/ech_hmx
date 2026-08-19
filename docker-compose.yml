@@ -1,0 +1,555 @@
+# ==================================================
+# 项目名称：hmx-tgo-suite
+# 定位：TGO 智能体平台的 Docker Compose 全量编排文件
+# 架构：微服务架构，包含「基础设施层 + 核心业务层 + 前端接入层」
+# 网络特性：所有服务默认加入同一个 compose 内网，服务名可直接作为域名互相调用
+#         （例如 tgo-api 服务内直接访问 http://tgo-ai:8081 即可通信）
+# ==================================================
+name: hmx-tgo-suite
+
+services:
+
+  # ==================================================
+  # 基础设施层：PostgreSQL 数据库（带 pgvector 向量扩展）
+  # 作用：全平台主数据库，存储用户、对话、知识库、设备等所有业务数据
+  # pgvector 扩展专门用于 RAG 知识库的向量相似度检索
+  # ==================================================
+  postgres:
+    image: pgvector/pgvector:pg16          # 基于 PostgreSQL 16 的 pgvector 官方镜像
+    container_name: hmx-tgo-postgres       # 固定容器名称
+    env_file:
+      - .env                               # 从根目录 .env 文件加载环境变量
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tgo}     # 数据库名，默认 tgo，可被 .env 覆盖
+      POSTGRES_USER: ${POSTGRES_USER:-tgo} # 数据库用户名
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tgo} # 数据库密码
+    volumes:
+      # 数据持久化：将容器内数据目录映射到宿主机，容器删除数据不丢失
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      # 健康检查：用 pg_isready 命令检测数据库是否就绪
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s   # 每 10 秒检测一次
+      timeout: 5s     # 单次检测超时 5 秒
+      retries: 5      # 连续失败 5 次标记为服务不健康
+    restart: unless-stopped # 重启策略：除非手动停止，否则异常自动重启
+
+  # ==================================================
+  # 基础设施层：Redis 缓存与消息队列
+  # 作用：全平台缓存、会话存储、Celery 任务队列 broker、分布式锁
+  # 设计：不同业务使用不同 Redis DB 编号隔离数据（0/1/2/3）
+  # ==================================================
+  redis:
+    image: redis:7-alpine                  # 轻量 Alpine 版 Redis 7
+    container_name: hmx-tgo-redis
+    # 启动参数：开启 AOF 持久化，保证服务重启数据不丢失
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./data/redis:/data                 # 数据持久化到宿主机
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]   # 用 ping 命令检测服务存活
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ==================================================
+  # 基础设施层：WuKongIM 即时通讯服务
+  # 作用：提供实时消息推送、WebSocket 长连接能力，支撑聊天消息实时下发
+  # ==================================================
+  wukongim:
+    image: ghcr.io/wukongim/wukongim:v2.2.5-20260422
+    container_name: hmx-tgo-wukongim
+    env_file:
+      - .env
+    environment:
+      # ---- 集群内部固定配置 ----
+      WK_CLUSTER_NODEID: 1001                  # 节点唯一 ID
+      WK_CLUSTER_SERVERADDR: wukongim:11110    # 集群内部通信地址
+      WK_CLUSTER_APIURL: http://wukongim:5001  # 集群管理 API 地址
+      WK_INTRANET_TCPADDR: wukongim:5100       # 内网 TCP 接入地址
+      WK_MODE: release                         # 运行模式：生产模式
+      # ---- 对外暴露配置 ----
+      WK_EXTERNAL_IP: ${SERVER_HOST:-127.0.0.1}       # 对外服务 IP
+      WK_EXTERNAL_WSADDR: ${WK_EXTERNAL_WSADDR:-}      # 对外 WebSocket 地址
+      WK_EXTERNAL_WSSADDR: ${WK_EXTERNAL_WSSADDR:-}    # 对外加密 WSS 地址
+      WK_TOKENAUTHON: ${WK_TOKENAUTHON:-false}         # 是否开启 Token 鉴权
+      # Webhook 回调：消息事件自动回调给 tgo-api 做业务处理
+      WK_WEBHOOK_HTTPADDR: http://tgo-api:8000/v1/integrations/wukongim/webhook
+    volumes:
+      - ./data/wukongim:/root/wukongim        # 数据持久化
+    ports:
+      # 端口映射格式：宿主机IP:宿主机端口:容器内端口
+      - "127.0.0.1:15100:5100"   # TCP 协议接入端口
+      - "127.0.0.1:15200:5200"   # WebSocket 接入端口
+      - "127.0.0.1:15300:5300"   # 管理后台端口
+    healthcheck:
+      # 调用内部健康检查接口
+      test: ["CMD-SHELL", "wget -q -Y off -O /dev/null http://localhost:5001/health > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    restart: always
+
+  # ==================================================
+  # 监控工具：Celery Flower 任务监控面板
+  # 作用：可视化监控所有 Celery 任务队列的运行状态、任务执行记录、Worker 状态
+  # ==================================================
+  tgo-celery-flower:
+    image: mher/flower:2.0
+    container_name: hmx-tgo-celery-flower
+    env_file:
+      - .env
+    environment:
+      # Celery Broker 地址：共用 Redis 2 号库
+      CELERY_BROKER_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/2
+      CELERY_RESULT_BACKEND: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/2
+      FLOWER_PORT: 5555                      # 面板监听端口
+    ports:
+      - "127.0.0.1:15555:5555"               # 宿主机 15555 映射容器内 5555
+    depends_on:
+      redis:
+        condition: service_healthy           # 等待 Redis 健康后再启动
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:5555/healthcheck || exit 1"]
+    restart: unless-stopped
+
+  # ==================================================
+  # RAG 服务组：知识库检索增强生成
+  # 拆分为 3 个容器：
+  #   1. tgo-rag        ：对外提供 HTTP API 的主服务
+  #   2. tgo-rag-worker ：Celery 异步任务 Worker，处理文档解析、向量化等耗时任务
+  #   3. tgo-rag-beat   ：Celery Beat 定时调度器，触发周期性任务
+  # ==================================================
+
+  # RAG 异步任务 Worker
+  tgo-rag-worker:
+    image: ghcr.io/tgoai/tgo/tgo-rag:latest
+    build:
+      context: ./repos/tgo-rag               # 本地构建镜像时的代码目录
+    container_name: hmx-tgo-rag-worker
+    hostname: tgo-rag-worker
+    env_file:
+      - .env
+    environment:
+      PORT: 8082
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/2 # Redis 2 号库
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tgo}:${POSTGRES_PASSWORD:-tgo}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-tgo}
+    volumes:
+      - ./data/tgo-rag/uploads:/app/uploads  # 上传文件持久化
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      tgo-rag:
+        condition: service_started           # 主服务启动后再启动 Worker
+    # 启动命令：启动 Celery Worker，监听指定业务队列
+    command: >
+      sh -c "celery -A src.rag_service.tasks.celery_app worker --loglevel=info --hostname=worker@tgo-rag-worker -Q document_processing,embedding,website_crawling,qa_processing,celery"
+    healthcheck:
+      # 检测 Worker 进程是否存活并可响应
+      test: ["CMD-SHELL", "celery -A src.rag_service.tasks.celery_app inspect ping -d worker@tgo-rag-worker --timeout=10 || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s                      # 启动宽限期：60 秒后开始检测
+    restart: unless-stopped
+
+  # RAG 定时任务调度器 Beat
+  tgo-rag-beat:
+    image: ghcr.io/tgoai/tgo/tgo-rag:latest
+    build:
+      context: ./repos/tgo-rag
+    container_name: hmx-tgo-rag-beat
+    env_file:
+      - .env
+    environment:
+      PORT: 8082
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/2
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tgo}:${POSTGRES_PASSWORD:-tgo}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-tgo}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      tgo-rag:
+        condition: service_started
+    # 启动命令：启动 Beat 定时调度器
+    command: >
+      sh -c "celery -A src.rag_service.tasks.celery_app beat --loglevel=info"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' || exit 1"] # 检测进程是否存在
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # RAG 主服务（HTTP API）
+  tgo-rag:
+    image: ghcr.io/tgoai/tgo/tgo-rag:latest
+    build:
+      context: ./repos/tgo-rag
+    container_name: hmx-tgo-rag
+    env_file:
+      - .env
+    environment:
+      PORT: 8082
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/2
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tgo}:${POSTGRES_PASSWORD:-tgo}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-tgo}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./data/tgo-rag/uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8082/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ==================================================
+  # 核心业务：AI 大模型智能体服务
+  # 作用：整个平台的「大脑」，负责 LLM 调用、智能体编排、工具调用、流式输出
+  # ==================================================
+  tgo-ai:
+    image: ghcr.io/tgoai/tgo/tgo-ai:latest
+    build:
+      context: ./repos/tgo-ai
+    container_name: hmx-tgo-ai
+    env_file:
+      - .env
+    environment:
+      PORT: 8081
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/1 # Redis 1 号库
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tgo}:${POSTGRES_PASSWORD:-tgo}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-tgo}
+      # ---- 内部服务调用地址（Docker 内网直接用服务名访问） ----
+      API_SERVICE_URL: http://tgo-api:8000
+      API_INTERNAL_SERVICE_URL: http://tgo-api:8001
+      RAG_SERVICE_URL: http://tgo-rag:8082
+      WORKFLOW_SERVICE_URL: http://tgo-workflow:8000
+      PLUGIN_RUNTIME_URL: http://tgo-plugin-runtime:8090
+      DEVICE_CONTROL_SERVICE_URL: http://tgo-device-control:8085
+      SKILLS_BASE_DIR: /data/skills          # 技能包存储目录
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      tgo-rag:
+        condition: service_started
+    volumes:
+      - ./data/skills:/data/skills           # 技能文件持久化
+    # 启动命令：先执行 Alembic 数据库迁移，再启动 uvicorn 异步 Web 服务
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8081"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8081/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ==================================================
+  # 插件运行时服务
+  # 作用：管理和执行第三方插件、MCP 工具，为 AI 智能体提供扩展能力
+  # ==================================================
+  tgo-plugin-runtime:
+    image: ghcr.io/tgoai/tgo/tgo-plugin-runtime:latest
+    build:
+      context: ./repos/tgo-plugin-runtime
+    container_name: hmx-tgo-plugin-runtime
+    env_file:
+      - .env
+    environment:
+      PORT: 8090                              # HTTP API 端口
+      PLUGIN_TCP_PORT: 8005                   # 插件 TCP 通信端口
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tgo}:${POSTGRES_PASSWORD:-tgo}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-tgo}
+      AI_SERVICE_URL: http://tgo-ai:8081
+    depends_on:
+      - tgo-ai
+      - postgres
+    ports:
+      - "127.0.0.1:18005:8005"               # 宿主机映射，用于本地插件调试
+    volumes:
+      - ./data/plugins:/var/lib/tgo/plugins  # 插件文件持久化
+      - plugin-socket:/var/run/tgo           # Unix Socket 共享卷（命名卷）
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8090/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ==================================================
+  # 设备控制服务
+  # 作用：AI 智能体远程设备控制的管理服务，处理设备注册、指令下发、截图回传
+  # ==================================================
+  tgo-device-control:
+    image: ghcr.io/tgoai/tgo/tgo-device-control:latest
+    build:
+      context: ./repos/tgo-device-control
+    container_name: hmx-tgo-device-control
+    env_file:
+      - .env
+    environment:
+      PORT: 8085
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tgo}:${POSTGRES_PASSWORD:-tgo}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-tgo}
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/3 # Redis 3 号库
+      AI_SERVICE_URL: http://tgo-ai:8081
+      API_SERVICE_URL: http://tgo-api:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      tgo-ai:
+        condition: service_started
+    volumes:
+      - ./data/tgo-device-control/screenshots:/var/lib/tgo/device-control/screenshots
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8085/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ==================================================
+  # 核心业务：API 网关服务
+  # 作用：统一 API 入口，负责多租户管理、鉴权、请求路由、业务聚合
+  #      所有前端和外部调用都经过此服务分发到下游子服务
+  # ==================================================
+  tgo-api:
+    image: ghcr.io/tgoai/tgo/tgo-api:latest
+    build:
+      context: ./repos/tgo-api
+    container_name: hmx-tgo-api
+    env_file:
+      - .env
+    depends_on:
+      - tgo-ai
+      - tgo-workflow
+      - tgo-plugin-runtime
+      - tgo-device-control
+      - postgres
+      - redis
+    environment:
+      PORT: 8000
+      INTERNAL_SERVICE_HOST: 0.0.0.0
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0 # Redis 0 号主库
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tgo}:${POSTGRES_PASSWORD:-tgo}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-tgo}
+      API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost/api}
+      # ---- 下游各内部服务地址与超时配置 ----
+      PLATFORM_SERVICE_URL: http://tgo-platform:8003
+      PLATFORM_SERVICE_TIMEOUT: 30
+      AI_SERVICE_URL: http://tgo-ai:8081
+      AI_SERVICE_TIMEOUT: 30
+      RAG_SERVICE_URL: http://tgo-rag:8082
+      RAG_SERVICE_TIMEOUT: 30
+      PLUGIN_RUNTIME_URL: http://tgo-plugin-runtime:8090
+      DEVICE_CONTROL_SERVICE_URL: http://tgo-device-control:8085
+      DEVICE_CONTROL_SERVICE_TIMEOUT: 60
+      WORKFLOW_SERVICE_URL: http://tgo-workflow:8000
+      WORKFLOW_SERVICE_TIMEOUT: 60
+      WUKONGIM_SERVICE_URL: http://wukongim:5001
+      WUKONGIM_SERVICE_TIMEOUT: 10
+      WUKONGIM_ENABLED: "true"
+      WUKONGIM_DEVICE_FLAG: 1
+      WUKONGIM_DEVICE_LEVEL: 1
+    volumes:
+      - ./data/tgo-api/uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ==================================================
+  # 平台渠道服务
+  # 作用：多渠道消息接入与同步，对接外部渠道，处理 SSE 流式消息推送
+  # ==================================================
+  tgo-platform:
+    image: ghcr.io/tgoai/tgo/tgo-platform:latest
+    build:
+      context: ./repos/tgo-platform
+    container_name: hmx-tgo-platform
+    env_file:
+      - .env
+    environment:
+      PORT: 8003
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tgo}:${POSTGRES_PASSWORD:-tgo}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-tgo}
+      API_BASE_URL: http://tgo-api:8000
+      SSE_BACKPRESSURE_LIMIT: 1000           # SSE 背压阈值
+      REQUEST_TIMEOUT_SECONDS: 120           # 请求超时时间
+    depends_on:
+      - tgo-api
+      - postgres
+      - redis
+      - wukongim
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8003/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ==================================================
+  # 工作流引擎服务 + 异步 Worker
+  # 作用：可视化工作流编排执行引擎，支持复杂自动化流程调度
+  # ==================================================
+  tgo-workflow:
+    image: ghcr.io/tgoai/tgo/tgo-workflow:latest
+    build:
+      context: ./repos/tgo-workflow
+    container_name: hmx-tgo-workflow
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/2
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tgo}:${POSTGRES_PASSWORD:-tgo}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-tgo}
+      AI_SERVICE_URL: http://tgo-ai:8081
+      ALLOWED_ORIGINS: '["*"]'               # CORS 跨域配置
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # 工作流 Celery 异步任务 Worker
+  tgo-workflow-worker:
+    image: ghcr.io/tgoai/tgo/tgo-workflow:latest
+    build:
+      context: ./repos/tgo-workflow
+    container_name: hmx-tgo-workflow-worker
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/2
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tgo}:${POSTGRES_PASSWORD:-tgo}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-tgo}
+      AI_SERVICE_URL: http://tgo-ai:8081
+      ALLOWED_ORIGINS: '["*"]'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      tgo-workflow:
+        condition: service_started
+    # 启动命令：启动工作流专用队列的 Celery Worker
+    command: >
+      sh -c "celery -A celery_app.celery worker --loglevel=info -Q workflow"
+    healthcheck:
+      test: ["CMD-SHELL", "/app/.venv/bin/celery -A celery_app.celery inspect ping -d \"celery@$$(hostname)\" --timeout=10 > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ==================================================
+  # 前端层：管理后台 + 聊天组件
+  # 都是 React 构建后通过 Nginx 静态托管
+  # ==================================================
+  tgo-web:
+    image: ghcr.io/tgoai/tgo/tgo-web:latest
+    build:
+      context: ./repos/tgo-web
+    container_name: hmx-tgo-web
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  tgo-widget-js:
+    image: ghcr.io/tgoai/tgo/tgo-widget-js:latest
+    build:
+      context: ./repos/tgo-widget-js
+    container_name: hmx-tgo-widget-js
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ==================================================
+  # 接入层：Nginx 反向代理
+  # 作用：统一外部入口，负责域名路由、SSL 终止、静态资源分发、API 反向代理
+  # ==================================================
+  nginx:
+    image: nginx:alpine
+    container_name: hmx-tgo-nginx
+    env_file:
+      - .env
+    ports:
+      # 宿主机映射 HTTP/HTTPS 端口，默认仅绑定 127.0.0.1 本地访问
+      - "127.0.0.1:${NGINX_PORT:-18080}:80"
+      - "127.0.0.1:${NGINX_SSL_PORT:-18443}:443"
+    volumes:
+      - ./data/nginx/conf.d:/etc/nginx/conf.d:ro  # 配置文件（只读）
+      - ./data/nginx/ssl:/etc/nginx/ssl:ro        # SSL 证书目录
+      - ./data/certbot/www:/var/www/certbot:ro    # Certbot 验证目录
+      - ./data/certbot/conf:/etc/letsencrypt:ro   # Let's Encrypt 证书
+    depends_on:
+      - tgo-web
+      - tgo-widget-js
+      - tgo-api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==================================================
+  # 工具：Certbot SSL 证书自动续期
+  # 作用：自动申请和续期 Let's Encrypt 免费 SSL 证书
+  # 注意：属于 ssl-auto profile，默认不启动，需手动指定 profile
+  # ==================================================
+  certbot:
+    image: certbot/certbot:latest
+    container_name: hmx-tgo-certbot
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+      - ./data/certbot/logs:/var/log/letsencrypt
+    # 循环每 12 小时执行一次续期检查
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done"
+    restart: unless-stopped
+    profiles:
+      - ssl-auto
+
+# ==================================================
+# 命名卷声明
+# Docker 管理的命名卷，用于容器间共享数据或持久化特殊数据
+# ==================================================
+volumes:
+  plugin-socket:                    # 插件通信的 Unix Socket 共享卷
+  tgo-web-node-modules:             # 前端 node_modules 缓存卷
+  tgo-widget-node-modules:

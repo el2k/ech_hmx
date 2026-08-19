@@ -1,0 +1,722 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TGO Supervisor Agent",
+    "description": "Agent coordination/supervisor system that manages specialized agents by distributing tasks based on capabilities",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health Check",
+        "description": "Check the health status of the supervisor agent service",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness Check",
+        "description": "Check if the service is ready to accept requests",
+        "operationId": "readiness_check_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Readiness Check Health Ready Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/live": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness Check",
+        "description": "Check if the service is alive and responding",
+        "operationId": "liveness_check_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Liveness Check Health Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/run": {
+      "post": {
+        "tags": [
+          "Supervisor"
+        ],
+        "summary": "Run Supervisor Agent",
+        "description": "Coordinate and execute tasks across specialized agents based on team configuration using Coordination System v2. Supports streaming for real-time progress updates. When `stream=false` (default), the endpoint returns a consolidated JSON payload; when `stream=true`, it emits Server-Sent Events for incremental updates.",
+        "operationId": "run_supervisor_run_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupervisorRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response. Returns JSON when `stream=false` and Server-Sent Events when `stream=true`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupervisorRunResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Successfully coordinated 2 agents",
+                  "results": [
+                    {
+                      "agent_id": "123e4567-e89b-12d3-a456-426614174000",
+                      "agent_name": "Technical Support Agent",
+                      "question": "What are the latest product updates?",
+                      "content": "Here are the latest product features...",
+                      "tools_used": [
+                        "web_search"
+                      ],
+                      "execution_time": 2.1,
+                      "success": true
+                    },
+                    {
+                      "agent_id": "456e7890-e89b-12d3-a456-426614174001",
+                      "agent_name": "Security Specialist",
+                      "question": "Assess security implications",
+                      "content": "Recommend implementing OAuth 2.0 with refresh tokens...",
+                      "tools_used": [
+                        "security_analysis"
+                      ],
+                      "execution_time": 3.1,
+                      "success": true
+                    }
+                  ],
+                  "content": "Based on consultation with our technical and security teams...",
+                  "metadata": {
+                    "total_execution_time": 3.2,
+                    "agents_consulted": 2,
+                    "strategy_used": "multi_agent_parallel",
+                    "team_id": "123e4567-e89b-12d3-a456-426614174000",
+                    "consensus_achieved": true
+                  }
+                }
+              },
+              "text/event-stream": {
+                "examples": {
+                  "stream": {
+                    "summary": "Streaming workflow events",
+                    "value": "event: connected\ndata: {\"message\": \"Stream connected\", \"request_id\": \"req-123\", \"correlation_id\": \"corr-456\"}\n\nevent: event\ndata: {\"event_type\": \"workflow_started\", \"timestamp\": \"2024-05-01T12:00:00Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"info\", \"data\": {\"request_id\": \"req-123\", \"team_id\": \"123e4567-e89b-12d3-a456-426614174000\", \"team_name\": \"Platform Team\", \"message_length\": 128, \"max_agents\": 3, \"execution_strategy\": \"auto\"}, \"metadata\": {\"phase\": \"initialization\"}}\n\nevent: event\ndata: {\"event_type\": \"agent_execution_completed\", \"timestamp\": \"2024-05-01T12:00:03Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"success\", \"data\": {\"agent_id\": \"98d1881c-4d7a-4f5a-9d6a-0f2f7ab3c001\", \"agent_name\": \"Technical Support Agent\", \"execution_id\": \"exec-1\", \"question\": \"Analyze customer issue\", \"execution_time\": 2.8, \"success\": true, \"error\": null, \"response_length\": 480}, \"metadata\": {\"phase\": \"execution\", \"step\": 3}}\n\nevent: event\ndata: {\"event_type\": \"workflow_completed\", \"timestamp\": \"2024-05-01T12:00:05Z\", \"correlation_id\": \"corr-456\", \"request_id\": \"req-123\", \"severity\": \"success\", \"data\": {\"phase\": \"completed\", \"progress_percentage\": 100.0, \"current_step\": \"Workflow completed\", \"total_steps\": 4, \"completed_steps\": 4}, \"metadata\": {\"total_execution_time\": 5.0, \"agents_consulted\": 2}}\n\nevent: disconnected\ndata: {\"message\": \"Stream disconnected\"}\n\n"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Team not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentExecutionResult": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Agent Id",
+            "description": "UUID of the executed agent"
+          },
+          "agent_name": {
+            "type": "string",
+            "title": "Agent Name",
+            "description": "Name of the executed agent"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question",
+            "description": "Question asked to the agent"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "Agent's response content"
+          },
+          "tools_used": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools Used",
+            "description": "List of tools used by the agent"
+          },
+          "execution_time": {
+            "type": "number",
+            "minimum": 0,
+            "title": "Execution Time",
+            "description": "Execution time in seconds"
+          },
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether execution was successful",
+            "default": true
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Error message if execution failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "agent_name",
+          "question",
+          "content",
+          "execution_time"
+        ],
+        "title": "AgentExecutionResult",
+        "description": "Result from a single agent execution.",
+        "example": {
+          "agent_id": "123e4567-e89b-12d3-a456-426614174000",
+          "agent_name": "Technical Support Agent",
+          "content": "Based on the latest documentation, here are the key features...",
+          "execution_time": 2.5,
+          "question": "What are the latest product updates?",
+          "success": true,
+          "tools_used": [
+            "web_search",
+            "documentation_lookup"
+          ]
+        }
+      },
+      "ErrorResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Always false for error responses",
+            "default": false
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "description": "Error message"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "Detailed error information"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code",
+            "description": "Machine-readable error code"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Error timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error",
+          "timestamp"
+        ],
+        "title": "ErrorResponse",
+        "description": "Standard error response model.",
+        "example": {
+          "detail": "The specified team ID does not exist or is not accessible",
+          "error": "Team not found",
+          "error_code": "TEAM_NOT_FOUND",
+          "success": false,
+          "timestamp": "2024-01-15T10:30:00Z"
+        }
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Service health status",
+            "default": "healthy"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Service version",
+            "default": "1.0.0"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Response timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp"
+        ],
+        "title": "HealthResponse",
+        "description": "Response model for health check endpoint.",
+        "example": {
+          "status": "healthy",
+          "timestamp": "2024-01-15T10:30:00Z",
+          "version": "1.0.0"
+        }
+      },
+      "SupervisorConfig": {
+        "properties": {
+          "execution_strategy": {
+            "type": "string",
+            "enum": [
+              "single",
+              "multiple",
+              "auto"
+            ],
+            "title": "Execution Strategy",
+            "description": "Strategy for agent selection and execution",
+            "default": "auto"
+          },
+          "max_agents": {
+            "type": "integer",
+            "maximum": 10,
+            "minimum": 1,
+            "title": "Max Agents",
+            "description": "Maximum number of agents to execute",
+            "default": 3
+          },
+          "timeout": {
+            "type": "integer",
+            "maximum": 300,
+            "minimum": 5,
+            "title": "Timeout",
+            "description": "Timeout for agent execution in seconds",
+            "default": 30
+          },
+          "require_consensus": {
+            "type": "boolean",
+            "title": "Require Consensus",
+            "description": "Whether to require consensus among multiple agents",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SupervisorConfig",
+        "description": "Configuration options for supervisor execution.",
+        "example": {
+          "execution_strategy": "auto",
+          "max_agents": 3,
+          "require_consensus": false,
+          "timeout": 30
+        }
+      },
+      "SupervisorMetadata": {
+        "properties": {
+          "total_execution_time": {
+            "type": "number",
+            "minimum": 0,
+            "title": "Total Execution Time",
+            "description": "Total execution time in seconds"
+          },
+          "agents_consulted": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Agents Consulted",
+            "description": "Number of agents that were consulted"
+          },
+          "strategy_used": {
+            "type": "string",
+            "title": "Strategy Used",
+            "description": "Execution strategy that was applied"
+          },
+          "team_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Team Id",
+            "description": "Team ID used for coordination"
+          },
+          "consensus_achieved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consensus Achieved",
+            "description": "Whether consensus was achieved (if applicable)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_execution_time",
+          "agents_consulted",
+          "strategy_used",
+          "team_id"
+        ],
+        "title": "SupervisorMetadata",
+        "description": "Metadata about the supervisor execution.",
+        "example": {
+          "agents_consulted": 2,
+          "consensus_achieved": true,
+          "strategy_used": "multi_agent_parallel",
+          "team_id": "123e4567-e89b-12d3-a456-426614174000",
+          "total_execution_time": 3.2
+        }
+      },
+      "SupervisorRunRequest": {
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Team Id",
+            "description": "UUID of the team to coordinate agents from"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Message",
+            "description": "User message to be processed by the agents"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "Session ID for conversation tracking"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "User ID for attribution and auditing"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupervisorConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Configuration options for supervisor execution"
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "description": "Enable streaming response with real-time events",
+            "default": false
+          },
+          "mcp_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mcp Url",
+            "description": "URL of the MCP server for tool integration"
+          },
+          "rag_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rag Url",
+            "description": "URL of the RAG server for retrieval-augmented generation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "team_id",
+          "message"
+        ],
+        "title": "SupervisorRunRequest",
+        "description": "Request model for the main /run endpoint.",
+        "example": {
+          "config": {
+            "execution_strategy": "auto",
+            "max_agents": 2,
+            "require_consensus": false,
+            "timeout": 45
+          },
+          "message": "Help me understand the latest product features",
+          "session_id": "session_123",
+          "stream": false,
+          "team_id": "123e4567-e89b-12d3-a456-426614174000",
+          "user_id": "user_456"
+        }
+      },
+      "SupervisorRunResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the request was successful",
+            "default": true
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Human-readable status message"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/AgentExecutionResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "Results from individual agent executions"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "Consolidated response from all agents"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/SupervisorMetadata",
+            "description": "Metadata about the execution"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Error message if success is false"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "content",
+          "metadata"
+        ],
+        "title": "SupervisorRunResponse",
+        "description": "Response model for the main /run endpoint.",
+        "example": {
+          "content": "Based on consultation with our technical and security teams...",
+          "message": "Successfully coordinated 2 agents",
+          "metadata": {
+            "agents_consulted": 2,
+            "consensus_achieved": true,
+            "strategy_used": "multi_agent_parallel",
+            "team_id": "123e4567-e89b-12d3-a456-426614174000",
+            "total_execution_time": 3.2
+          },
+          "results": [
+            {
+              "agent_id": "123e4567-e89b-12d3-a456-426614174000",
+              "agent_name": "Technical Support Agent",
+              "content": "Here are the latest product features...",
+              "execution_time": 2.1,
+              "question": "What are the latest product updates?",
+              "success": true,
+              "tools_used": [
+                "web_search"
+              ]
+            },
+            {
+              "agent_id": "456e7890-e89b-12d3-a456-426614174001",
+              "agent_name": "Security Specialist",
+              "content": "Recommend implementing OAuth 2.0 with refresh tokens...",
+              "execution_time": 3.1,
+              "question": "Assess security implications",
+              "success": true,
+              "tools_used": [
+                "security_analysis"
+              ]
+            }
+          ],
+          "success": true
+        }
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

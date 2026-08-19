@@ -1,0 +1,9 @@
+{
+  "component": true,
+  "usingComponents": {
+    "message-bubble": "../message-bubble/index",
+    "markdown-text": "../markdown-text/index",
+    "system-message": "../system-message/index",
+    "json-render-message": "../json-render-message/index"
+  }
+}

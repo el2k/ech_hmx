@@ -1,0 +1,3119 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TGO Workflow Engine",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/workflows/": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Workflows",
+        "operationId": "get_workflows_v1_workflows__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tags"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "updated_at",
+              "title": "Sort By"
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "desc",
+              "title": "Sort Order"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponse_WorkflowSummary_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Create Workflow",
+        "operationId": "create_workflow_v1_workflows__post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflows/{workflow_id}": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Workflow",
+        "operationId": "get_workflow_v1_workflows__workflow_id__get",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Update Workflow",
+        "operationId": "update_workflow_v1_workflows__workflow_id__put",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Delete Workflow",
+        "operationId": "delete_workflow_v1_workflows__workflow_id__delete",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflows/{workflow_id}/duplicate": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Duplicate Workflow",
+        "operationId": "duplicate_workflow_v1_workflows__workflow_id__duplicate_post",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/WorkflowDuplicateRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflows/validate": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Validate Workflow Generic",
+        "operationId": "validate_workflow_generic_v1_workflows_validate_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowValidateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowValidationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflows/{workflow_id}/validate": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Validate Workflow",
+        "operationId": "validate_workflow_v1_workflows__workflow_id__validate_post",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowValidationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflows/{workflow_id}/publish": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Publish Workflow",
+        "operationId": "publish_workflow_v1_workflows__workflow_id__publish_post",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowInDB"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflows/{workflow_id}/variables": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Workflow Variables",
+        "operationId": "get_workflow_variables_v1_workflows__workflow_id__variables_get",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowVariablesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflows/{workflow_id}/execute": {
+      "post": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Execute Workflow",
+        "description": "Execute a workflow using one of three supported modes:\n    \n    1. **Synchronous Mode (Default, `stream=False`, `async=False`)**:\n       Executes the workflow immediately and returns the final output. Ideal for short-lived tasks.\n    \n    2. **Asynchronous Mode (`async=True`)**:\n       Creates an execution record and triggers a background Celery task. Returns the execution record immediately.\n    \n    3. **Streaming Mode (`stream=True`)**:\n       Returns a Server-Sent Events (SSE) stream, pushing real-time events as the workflow progresses.\n    \n    ### Streaming Mode Events (SSE):\n    When `stream=True`, the response header includes `Content-Type: text/event-stream`.\n    Each message starts with `data: ` followed by a JSON string and ends with `\n\n`.\n    \n    - **workflow_started**: Workflow execution initialized.\n    - **node_started**: A specific node has started executing.\n    - **node_finished**: A specific node has finished (success or failure).\n    - **workflow_finished**: Entire workflow has finished.",
+        "operationId": "execute_workflow_v1_workflows__workflow_id__execute_post",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowExecuteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkflowSyncResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WorkflowExecution"
+                    }
+                  ]
+                },
+                "examples": {
+                  "sync_mode": {
+                    "summary": "Synchronous Mode (Default)",
+                    "description": "Returns final output and metadata.",
+                    "value": {
+                      "success": true,
+                      "output": {
+                        "answer": "Paris is the capital of France."
+                      },
+                      "metadata": {
+                        "duration": 1.234,
+                        "startTime": "2026-01-03T06:16:44.478Z",
+                        "endTime": "2026-01-03T06:16:45.712Z"
+                      }
+                    }
+                  },
+                  "async_mode": {
+                    "summary": "Asynchronous Mode (async=true)",
+                    "description": "Returns the execution record with 'pending' status.",
+                    "value": {
+                      "id": "d73d5f18-3cc0-400f-ab18-c0a5f05625f5",
+                      "project_id": "proj-123",
+                      "workflow_id": "wf-456",
+                      "status": "pending",
+                      "input": {
+                        "query": "What is the capital of France?"
+                      },
+                      "started_at": "2026-01-03T06:16:44.478Z",
+                      "node_executions": []
+                    }
+                  }
+                }
+              },
+              "text/event-stream": {
+                "description": "Streaming Mode (stream=true)",
+                "example": "data: {\"event\": \"workflow_started\", \"workflow_run_id\": \"uuid-1\", \"task_id\": \"stream-uuid-1\", \"data\": {\"id\": \"uuid-1\", \"workflow_id\": \"wf-1\", \"inputs\": {}, \"created_at\": 1735790000}}\n\ndata: {\"event\": \"node_started\", \"workflow_run_id\": \"uuid-1\", \"task_id\": \"stream-uuid-1\", \"data\": {\"id\": \"node-exec-1\", \"node_id\": \"node-1\", \"node_type\": \"llm\", \"title\": \"AI Chat\", \"index\": 1, \"created_at\": 1735790001}}\n\ndata: {\"event\": \"node_finished\", \"workflow_run_id\": \"uuid-1\", \"task_id\": \"stream-uuid-1\", \"data\": {\"id\": \"node-exec-1\", \"node_id\": \"node-1\", \"node_type\": \"llm\", \"inputs\": {}, \"outputs\": {\"text\": \"Hello\"}, \"status\": \"succeeded\", \"error\": null, \"elapsed_time\": 0.5, \"finished_at\": 1735790002}}\n\ndata: {\"event\": \"workflow_finished\", \"workflow_run_id\": \"uuid-1\", \"task_id\": \"stream-uuid-1\", \"data\": {\"id\": \"uuid-1\", \"workflow_id\": \"wf-1\", \"status\": \"succeeded\", \"outputs\": {\"result\": \"Hello\"}, \"error\": null, \"elapsed_time\": 0.6, \"total_steps\": 1, \"finished_at\": 1735790002}}\n\n"
+              }
+            }
+          },
+          "404": {
+            "description": "Workflow not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflows/executions/{execution_id}": {
+      "get": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Get Execution Status",
+        "operationId": "get_execution_status_v1_workflows_executions__execution_id__get",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowExecution"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflows/{workflow_id}/executions": {
+      "get": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Get Workflow Executions",
+        "operationId": "get_workflow_executions_v1_workflows__workflow_id__executions_get",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowExecution"
+                  },
+                  "title": "Response Get Workflow Executions V1 Workflows  Workflow Id  Executions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflows/executions/{execution_id}/cancel": {
+      "post": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Cancel Execution",
+        "operationId": "cancel_execution_v1_workflows_executions__execution_id__cancel_post",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowExecutionCancelResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthCheckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "APINodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "api",
+            "title": "Type",
+            "description": "Node type: api",
+            "default": "api"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "DELETE",
+              "PATCH"
+            ],
+            "title": "Method",
+            "description": "HTTP method"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "Request URL"
+          },
+          "headers": {
+            "items": {
+              "$ref": "#/components/schemas/KeyValue"
+            },
+            "type": "array",
+            "title": "Headers",
+            "description": "HTTP headers",
+            "default": []
+          },
+          "params": {
+            "items": {
+              "$ref": "#/components/schemas/KeyValue"
+            },
+            "type": "array",
+            "title": "Params",
+            "description": "Query parameters",
+            "default": []
+          },
+          "body_type": {
+            "type": "string",
+            "enum": [
+              "none",
+              "json",
+              "form-data",
+              "x-www-form-urlencoded",
+              "raw"
+            ],
+            "title": "Body Type",
+            "description": "Request body type"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body",
+            "description": "Request body content"
+          },
+          "form_data": {
+            "items": {
+              "$ref": "#/components/schemas/FormField"
+            },
+            "type": "array",
+            "title": "Form Data",
+            "description": "Form data",
+            "default": []
+          },
+          "form_url_encoded": {
+            "items": {
+              "$ref": "#/components/schemas/KeyValue"
+            },
+            "type": "array",
+            "title": "Form Url Encoded",
+            "description": "URL-encoded form data",
+            "default": []
+          },
+          "raw_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "html",
+                  "xml",
+                  "javascript"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Type",
+            "description": "Raw text type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key",
+          "method",
+          "url",
+          "body_type"
+        ],
+        "title": "APINodeData"
+      },
+      "AgentNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "agent",
+            "title": "Type",
+            "description": "Node type: agent",
+            "default": "agent"
+          },
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id",
+            "description": "Agent ID"
+          },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name",
+            "description": "Agent name"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Mapping",
+            "description": "Input parameters mapping"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key",
+          "agent_id"
+        ],
+        "title": "AgentNodeData"
+      },
+      "AnswerNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "answer",
+            "title": "Type",
+            "description": "Node type: answer",
+            "default": "answer"
+          },
+          "output_type": {
+            "type": "string",
+            "enum": [
+              "variable",
+              "template",
+              "structured"
+            ],
+            "title": "Output Type",
+            "description": "Output configuration type"
+          },
+          "output_variable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Variable",
+            "description": "Selected output variable path when type is 'variable'"
+          },
+          "output_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Template",
+            "description": "Jinja2 template content when type is 'template'"
+          },
+          "output_structure": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OutputField"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Structure",
+            "description": "Structured output fields when type is 'structured'"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key",
+          "output_type"
+        ],
+        "title": "AnswerNodeData"
+      },
+      "Category": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Category ID"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Category name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Category description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "title": "Category"
+      },
+      "ClassifierNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "classifier",
+            "title": "Type",
+            "description": "Node type: classifier",
+            "default": "classifier"
+          },
+          "input_variable": {
+            "type": "string",
+            "title": "Input Variable",
+            "description": "Input variable path to classify"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id",
+            "description": "LLM provider ID"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id",
+            "description": "Model ID"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            },
+            "type": "array",
+            "title": "Categories",
+            "description": "Defined classification rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key",
+          "input_variable",
+          "categories"
+        ],
+        "title": "ClassifierNodeData"
+      },
+      "ConditionNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "condition",
+            "title": "Type",
+            "description": "Node type: condition",
+            "default": "condition"
+          },
+          "condition_type": {
+            "type": "string",
+            "enum": [
+              "expression",
+              "variable",
+              "llm"
+            ],
+            "title": "Condition Type",
+            "description": "Condition evaluation type"
+          },
+          "expression": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expression",
+            "description": "Python expression"
+          },
+          "variable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variable",
+            "description": "Referenced variable path"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "equals",
+                  "notEquals",
+                  "contains",
+                  "greaterThan",
+                  "lessThan",
+                  "isEmpty",
+                  "isNotEmpty"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator",
+            "description": "Comparison operator"
+          },
+          "compare_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compare Value",
+            "description": "Comparison value"
+          },
+          "llm_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Prompt",
+            "description": "LLM evaluation prompt"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id",
+            "description": "LLM provider ID"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id",
+            "description": "Model ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key",
+          "condition_type"
+        ],
+        "title": "ConditionNodeData"
+      },
+      "EventNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "event",
+            "title": "Type",
+            "description": "Node type: event",
+            "default": "event"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type",
+            "description": "Internal system event type identifier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key",
+          "event_type"
+        ],
+        "title": "EventNodeData"
+      },
+      "ExecutionStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "ExecutionStatus"
+      },
+      "FormField": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "Field name"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "description": "Field value"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "file"
+            ],
+            "title": "Type",
+            "description": "Field type",
+            "default": "text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "FormField"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthCheckResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Health status of the service"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "HealthCheckResponse"
+      },
+      "InputNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "input",
+            "title": "Type",
+            "description": "Node type: input",
+            "default": "input"
+          },
+          "input_variables": {
+            "items": {
+              "$ref": "#/components/schemas/InputVariable"
+            },
+            "type": "array",
+            "title": "Input Variables",
+            "description": "Input variables defined for the conversation",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key"
+        ],
+        "title": "InputNodeData"
+      },
+      "InputVariable": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the variable"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "number",
+              "boolean"
+            ],
+            "title": "Type",
+            "description": "The type of the variable"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the variable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "InputVariable"
+      },
+      "JsonValue": {
+
+      },
+      "KeyValue": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "Key"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "description": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "KeyValue"
+      },
+      "LLMNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "llm",
+            "title": "Type",
+            "description": "Node type: llm",
+            "default": "llm"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id",
+            "description": "LLM provider ID"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id",
+            "description": "Model ID"
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name",
+            "description": "Model display name"
+          },
+          "system_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Prompt",
+            "description": "System prompt"
+          },
+          "user_prompt": {
+            "type": "string",
+            "title": "User Prompt",
+            "description": "User prompt, supports {{node_key.var}} variable references"
+          },
+          "temperature": {
+            "type": "number",
+            "title": "Temperature",
+            "description": "Sampling temperature",
+            "default": 0.7
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens",
+            "description": "Maximum generation tokens",
+            "default": 2000
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "List of tool IDs that can be called by this node",
+            "default": []
+          },
+          "knowledge_bases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Knowledge Bases",
+            "description": "List of associated knowledge base IDs",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key",
+          "user_prompt"
+        ],
+        "title": "LLMNodeData"
+      },
+      "MessageResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Message content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "MessageResponse"
+      },
+      "NodeExecution": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id",
+            "description": "Project ID"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id",
+            "description": "The node ID in the workflow"
+          },
+          "node_type": {
+            "type": "string",
+            "title": "Node Type",
+            "description": "Node type"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus",
+            "description": "Execution status"
+          },
+          "input": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input",
+            "description": "Input data for the node"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Output results for the node"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Execution error message"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At",
+            "description": "Node execution start time"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At",
+            "description": "Node execution completion time"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration",
+            "description": "Execution duration in milliseconds"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Unique identifier for the node execution record"
+          },
+          "execution_id": {
+            "type": "string",
+            "title": "Execution Id",
+            "description": "The ID of the parent workflow execution record"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "node_id",
+          "node_type",
+          "status",
+          "started_at",
+          "id",
+          "execution_id"
+        ],
+        "title": "NodeExecution"
+      },
+      "NodeVariables": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id",
+            "description": "Node ID"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "Node reference key"
+          },
+          "node_type": {
+            "type": "string",
+            "title": "Node Type",
+            "description": "Node type"
+          },
+          "node_label": {
+            "type": "string",
+            "title": "Node Label",
+            "description": "Node label"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowVariable"
+            },
+            "type": "array",
+            "title": "Outputs",
+            "description": "Output variables of the node"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "reference_key",
+          "node_type",
+          "node_label",
+          "outputs"
+        ],
+        "title": "NodeVariables"
+      },
+      "OutputField": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "Key name of the output field"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "description": "Value or variable reference of the output field"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "OutputField"
+      },
+      "PaginatedResponse_WorkflowSummary_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowSummary"
+            },
+            "type": "array",
+            "title": "Data",
+            "description": "List of items for current page"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationInfo",
+            "description": "Pagination metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "pagination"
+        ],
+        "title": "PaginatedResponse[WorkflowSummary]"
+      },
+      "PaginationInfo": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total number of items"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Items per page"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "Offset (skip)"
+          },
+          "has_next": {
+            "type": "boolean",
+            "title": "Has Next",
+            "description": "Whether there are more items"
+          },
+          "has_prev": {
+            "type": "boolean",
+            "title": "Has Prev",
+            "description": "Whether there are previous items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "has_next",
+          "has_prev"
+        ],
+        "title": "PaginationInfo"
+      },
+      "ParallelNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "parallel",
+            "title": "Type",
+            "description": "Node type: parallel",
+            "default": "parallel"
+          },
+          "branches": {
+            "type": "integer",
+            "title": "Branches",
+            "description": "Number of branches"
+          },
+          "wait_for_all": {
+            "type": "boolean",
+            "title": "Wait For All",
+            "description": "Whether to wait for all branches to complete",
+            "default": true
+          },
+          "timeout": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout",
+            "description": "Execution timeout in seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key",
+          "branches"
+        ],
+        "title": "ParallelNodeData"
+      },
+      "Position": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "Position"
+      },
+      "TimerNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "timer",
+            "title": "Type",
+            "description": "Node type: timer",
+            "default": "timer"
+          },
+          "cron_expression": {
+            "type": "string",
+            "title": "Cron Expression",
+            "description": "Cron expression for scheduled tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key",
+          "cron_expression"
+        ],
+        "title": "TimerNodeData"
+      },
+      "ToolNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "tool",
+            "title": "Type",
+            "description": "Node type: tool",
+            "default": "tool"
+          },
+          "tool_id": {
+            "type": "string",
+            "title": "Tool Id",
+            "description": "Tool ID"
+          },
+          "tool_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Name",
+            "description": "Tool name"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Tool configuration parameters"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Mapping",
+            "description": "Input parameters mapping"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key",
+          "tool_id"
+        ],
+        "title": "ToolNodeData"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WebhookNodeData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The display name of the node"
+          },
+          "reference_key": {
+            "type": "string",
+            "title": "Reference Key",
+            "description": "The unique reference key of the node, used to identify it in variable references"
+          },
+          "type": {
+            "type": "string",
+            "const": "webhook",
+            "title": "Type",
+            "description": "Node type: webhook",
+            "default": "webhook"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path",
+            "description": "Optional custom endpoint path suffix"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST"
+            ],
+            "title": "Method",
+            "description": "HTTP method for the webhook",
+            "default": "POST"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "reference_key"
+        ],
+        "title": "WebhookNodeData"
+      },
+      "WorkflowCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Workflow name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Detailed description of the workflow"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "List of workflow tags",
+            "default": []
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNode-Input"
+            },
+            "type": "array",
+            "title": "Nodes",
+            "description": "List of workflow nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowEdge"
+            },
+            "type": "array",
+            "title": "Edges",
+            "description": "List of workflow edges"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "nodes",
+          "edges"
+        ],
+        "title": "WorkflowCreate"
+      },
+      "WorkflowDefinition": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNode-Output"
+            },
+            "type": "array",
+            "title": "Nodes",
+            "description": "List of workflow nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowEdge"
+            },
+            "type": "array",
+            "title": "Edges",
+            "description": "List of workflow edges"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodes",
+          "edges"
+        ],
+        "title": "WorkflowDefinition"
+      },
+      "WorkflowDuplicateRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "New name for the duplicated workflow"
+          }
+        },
+        "type": "object",
+        "title": "WorkflowDuplicateRequest"
+      },
+      "WorkflowEdge": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the edge"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "The source node ID"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "The target node ID"
+          },
+          "sourceHandle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourcehandle",
+            "description": "The source handle ID"
+          },
+          "targetHandle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targethandle",
+            "description": "The target handle ID"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type",
+            "description": "The type of the edge",
+            "default": "smoothstep"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "Additional data for the edge"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "target"
+        ],
+        "title": "WorkflowEdge"
+      },
+      "WorkflowExecuteRequest": {
+        "properties": {
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Inputs",
+            "description": "Input variables passed to the start node",
+            "default": {
+
+            }
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "description": "Whether to stream the execution events using Server-Sent Events (SSE)",
+            "default": false
+          },
+          "async": {
+            "type": "boolean",
+            "title": "Async",
+            "description": "Whether to execute asynchronously via Celery",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "WorkflowExecuteRequest"
+      },
+      "WorkflowExecution": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id",
+            "description": "Project ID"
+          },
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id",
+            "description": "Workflow ID"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus",
+            "description": "Overall execution status"
+          },
+          "input": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input",
+            "description": "Workflow startup input data"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Final workflow output result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Execution error message"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At",
+            "description": "Workflow execution start time"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At",
+            "description": "Workflow execution completion time"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration",
+            "description": "Execution duration in milliseconds"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Unique identifier for the workflow execution record"
+          },
+          "node_executions": {
+            "items": {
+              "$ref": "#/components/schemas/NodeExecution"
+            },
+            "type": "array",
+            "title": "Node Executions",
+            "description": "List of detailed node executions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workflow_id",
+          "status",
+          "started_at",
+          "id"
+        ],
+        "title": "WorkflowExecution"
+      },
+      "WorkflowExecutionCancelResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Execution ID"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExecutionStatus",
+            "description": "Current status"
+          },
+          "cancelled_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Cancelled At",
+            "description": "Cancellation time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "cancelled_at"
+        ],
+        "title": "WorkflowExecutionCancelResponse"
+      },
+      "WorkflowInDB": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Workflow name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Detailed description of the workflow"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "List of workflow tags",
+            "default": []
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Unique identifier of the workflow"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id",
+            "description": "The ID of the project this workflow belongs to"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/WorkflowDefinition",
+            "description": "Workflow graph definition"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkflowStatus",
+            "description": "Current status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "Version number"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By",
+            "description": "Creator ID"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Last update time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "project_id",
+          "definition",
+          "status",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WorkflowInDB"
+      },
+      "WorkflowNode-Input": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Position"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/InputNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/TimerNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/WebhookNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/EventNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/AnswerNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/LLMNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/AgentNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/ToolNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/APINodeData"
+              },
+              {
+                "$ref": "#/components/schemas/ConditionNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/ClassifierNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/ParallelNodeData"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "agent": "#/components/schemas/AgentNodeData",
+                "answer": "#/components/schemas/AnswerNodeData",
+                "api": "#/components/schemas/APINodeData",
+                "classifier": "#/components/schemas/ClassifierNodeData",
+                "condition": "#/components/schemas/ConditionNodeData",
+                "event": "#/components/schemas/EventNodeData",
+                "input": "#/components/schemas/InputNodeData",
+                "llm": "#/components/schemas/LLMNodeData",
+                "parallel": "#/components/schemas/ParallelNodeData",
+                "timer": "#/components/schemas/TimerNodeData",
+                "tool": "#/components/schemas/ToolNodeData",
+                "webhook": "#/components/schemas/WebhookNodeData"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "position",
+          "data"
+        ],
+        "title": "WorkflowNode"
+      },
+      "WorkflowNode-Output": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Position"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/InputNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/TimerNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/WebhookNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/EventNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/AnswerNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/LLMNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/AgentNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/ToolNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/APINodeData"
+              },
+              {
+                "$ref": "#/components/schemas/ConditionNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/ClassifierNodeData"
+              },
+              {
+                "$ref": "#/components/schemas/ParallelNodeData"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "agent": "#/components/schemas/AgentNodeData",
+                "answer": "#/components/schemas/AnswerNodeData",
+                "api": "#/components/schemas/APINodeData",
+                "classifier": "#/components/schemas/ClassifierNodeData",
+                "condition": "#/components/schemas/ConditionNodeData",
+                "event": "#/components/schemas/EventNodeData",
+                "input": "#/components/schemas/InputNodeData",
+                "llm": "#/components/schemas/LLMNodeData",
+                "parallel": "#/components/schemas/ParallelNodeData",
+                "timer": "#/components/schemas/TimerNodeData",
+                "tool": "#/components/schemas/ToolNodeData",
+                "webhook": "#/components/schemas/WebhookNodeData"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "position",
+          "data"
+        ],
+        "title": "WorkflowNode"
+      },
+      "WorkflowStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "active",
+          "archived"
+        ],
+        "title": "WorkflowStatus"
+      },
+      "WorkflowSummary": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Workflow name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Detailed description of the workflow"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "List of workflow tags",
+            "default": []
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Unique identifier of the workflow"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id",
+            "description": "The ID of the project this workflow belongs to"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkflowStatus",
+            "description": "Current status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "Version number"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Last update time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "project_id",
+          "status",
+          "version",
+          "updated_at"
+        ],
+        "title": "WorkflowSummary"
+      },
+      "WorkflowUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Workflow name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Detailed description of the workflow"
+          },
+          "nodes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/WorkflowNode-Input"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nodes",
+            "description": "List of workflow nodes"
+          },
+          "edges": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/WorkflowEdge"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edges",
+            "description": "List of workflow edges"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Workflow status"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "List of workflow tags"
+          }
+        },
+        "type": "object",
+        "title": "WorkflowUpdate"
+      },
+      "WorkflowValidateRequest": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNode-Input"
+            },
+            "type": "array",
+            "title": "Nodes",
+            "description": "List of workflow nodes to validate"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowEdge"
+            },
+            "type": "array",
+            "title": "Edges",
+            "description": "List of workflow edges to validate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodes",
+          "edges"
+        ],
+        "title": "WorkflowValidateRequest"
+      },
+      "WorkflowValidationResponse": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid",
+            "description": "Whether the workflow passed validation"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors",
+            "description": "List of validation error messages, empty if valid is true"
+          }
+        },
+        "type": "object",
+        "required": [
+          "valid",
+          "errors"
+        ],
+        "title": "WorkflowValidationResponse"
+      },
+      "WorkflowVariable": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Variable name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Variable type (string, number, boolean, object)"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Variable description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "WorkflowVariable"
+      },
+      "WorkflowVariablesResponse": {
+        "properties": {
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/NodeVariables"
+            },
+            "type": "array",
+            "title": "Variables",
+            "description": "List of available variables per node"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variables"
+        ],
+        "title": "WorkflowVariablesResponse"
+      }
+    }
+  }
+}

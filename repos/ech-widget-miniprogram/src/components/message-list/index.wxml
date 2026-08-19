@@ -1,0 +1,108 @@
+<scroll-view
+  class="msg-list"
+  scroll-y
+  scroll-top="{{scrollTop}}"
+  scroll-with-animation="{{scrollAnimated}}"
+  upper-threshold="80"
+  bindscrolltoupper="onScrollToUpper"
+>
+  <!-- Loading indicator -->
+  <view wx:if="{{historyLoading}}" class="status-row">
+    <text class="status-text">加载中...</text>
+  </view>
+  <view wx:elif="{{!historyHasMore}}" class="status-row">
+    <text class="status-text-muted">没有更多消息</text>
+  </view>
+
+  <!-- Message rows -->
+  <view
+    wx:for="{{displayMessages}}"
+    wx:key="id"
+    id="msg-{{item.id}}"
+    class="msg-row"
+  >
+    <!-- System message -->
+    <system-message
+      wx:if="{{item.isSystem}}"
+      content="{{item.payload.content}}"
+    />
+
+    <!-- Regular message -->
+    <view wx:else class="msg-inner {{item.isSelf ? 'msg-self' : 'msg-agent'}}">
+
+      <!-- Image message -->
+      <view
+        wx:if="{{item.payload.type === 2}}"
+        class="msg-image-wrap"
+        bindtap="onTapImage"
+        data-url="{{item.payload.url}}"
+      >
+        <image
+          src="{{item.payload.url}}"
+          mode="widthFix"
+          class="msg-image"
+          lazy-load
+        />
+      </view>
+
+      <!-- JSON Render message -->
+      <block wx:elif="{{item.hasUiParts}}">
+        <message-bubble self="{{item.isSelf}}" themeColor="{{themeColor}}">
+          <json-render-message
+            uiParts="{{item.uiParts}}"
+            payloadContent="{{item.payload.content || ''}}"
+            showCursor="{{!!item.streamData}}"
+            themeColor="{{themeColor}}"
+            bind:sendmessage="onJsonRenderSend"
+          />
+        </message-bubble>
+      </block>
+
+      <!-- Text / streaming / loading / error -->
+      <block wx:else>
+        <message-bubble self="{{item.isSelf}}" themeColor="{{themeColor}}">
+
+          <!-- AI Loading (type 100) -->
+          <view wx:if="{{item.payload.type === 100 && !item.streamData}}" class="loading-dots">
+            <view class="dot dot1"></view>
+            <view class="dot dot2"></view>
+            <view class="dot dot3"></view>
+          </view>
+
+          <!-- Error -->
+          <view wx:elif="{{item.errorMessage}}" class="error-text">
+            <text>{{item.errorMessage}}</text>
+          </view>
+
+          <!-- Streaming content -->
+          <block wx:elif="{{item.streamData}}">
+            <markdown-text content="{{item.streamData}}" />
+            <view class="cursor"></view>
+          </block>
+
+          <!-- Normal text -->
+          <block wx:elif="{{item.payload.type === 1}}">
+            <markdown-text content="{{item.payload.content}}" />
+          </block>
+
+          <!-- Fallback -->
+          <block wx:else>
+            <text>{{item.payload.content || ''}}</text>
+          </block>
+
+        </message-bubble>
+      </block>
+
+      <!-- Status indicators -->
+      <view wx:if="{{item.status === 'sending'}}" class="msg-status">
+        <text class="status-text-small">发送中...</text>
+      </view>
+      <view wx:elif="{{item.status === 'uploading'}}" class="msg-status">
+        <text class="status-text-small">上传中 {{item.uploadProgress || 0}}%</text>
+      </view>
+
+      <!-- Time label -->
+      <text wx:if="{{item._time}}" class="time-label">{{item._time}}</text>
+    </view>
+  </view>
+</scroll-view>

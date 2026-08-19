@@ -1,0 +1,1231 @@
+# -*- coding: utf-8 -*-
+"""Chat endpoints for messaging and AI completion."""
+# 模块说明：聊天端点，提供消息发送、AI 流式/非流式对话、文件上传、OpenAI 兼容接口等功能。
+# 这是整个聊天系统的核心入口，负责处理访客与 AI/客服之间的所有交互。
+
+from __future__ import annotations
+
+import asyncio
+from datetime import datetime
+import json
+import mimetypes
+import os
+import re
+import secrets
+import time
+import unicodedata
+from pathlib import Path
+from typing import Any, Dict, Optional
+from urllib.parse import quote
+from uuid import UUID, uuid4
+
+import httpx
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session, joinedload
+
+from app.core.config import settings
+from app.core.database import get_db
+from app.core.security import get_current_active_user, verify_token, require_permission
+from app.models import (
+    ChannelMember,
+    ChatFile,
+    Platform,
+    SessionStatus,
+    Staff,
+    Visitor,
+    VisitorSession,
+    ChannelMemoryClearance,
+    ClearanceUserType,
+)
+from app.schemas import ChatFileUploadResponse, StaffSendPlatformMessageRequest
+from app.schemas.chat import (
+    UIUserActionRequest,
+    UIUserActionResponse,
+    ChatCompletionRequest,
+    StaffAgentChatRequest,
+    StaffAgentChatResponse,
+    OpenAIChatCompletionChunk,
+    OpenAIChatCompletionChunkChoice,
+    OpenAIChatCompletionChoice,
+    OpenAIChatCompletionDelta,
+    OpenAIChatCompletionRequest,
+    OpenAIChatCompletionResponse,
+    OpenAIChatCompletionUsage,
+    OpenAIChatMessage,
+)
+from app.services import chat_service
+from app.core.logging import get_logger
+logger = get_logger(__name__)
+from app.services.file_service import sanitize_filename, get_safe_ascii_filename
+from app.services.chat_service import get_or_create_visitor
+from app.services.transfer_service import transfer_to_staff
+from app.models import AssignmentSource
+from app.services.ai_client import AIServiceClient
+from app.services.wukongim_client import wukongim_client
+from app.utils.const import CHANNEL_TYPE_CUSTOMER_SERVICE, MEMBER_TYPE_STAFF, MessageType
+from app.utils.encoding import build_visitor_channel_id, parse_visitor_channel_id, get_session_id
+
+
+router = APIRouter()
+
+
+# ------------------- 辅助函数 -------------------
+
+def _build_platform_agent_kwargs(platform: Platform) -> dict[str, str]:
+    """
+    构建平台 Agent 运行时参数。
+    
+    如果平台配置了默认 Agent ID，则返回包含 agent_id 的字典；
+    否则返回空字典，AI 服务将使用其自身的默认 Agent。
+    """
+    if platform.agent_id is None:
+        return {}
+    return {"agent_id": str(platform.agent_id)}
+
+
+# ============================================================================
+# 1. 聊天完成接口（核心）
+# ============================================================================
+
+@router.post(
+    "/completion",
+    summary="流式聊天完成接口",
+    tags=["Chat"],
+    description="""...""" # 省略详细文档
+)
+async def chat_completion(req: ChatCompletionRequest, db: Session = Depends(get_db)) -> StreamingResponse:
+    """
+    流式聊天完成接口 - 访客发送消息并接收 AI 流式响应。
+    
+    这是聊天系统的核心入口，处理完整的对话流程：
+    1. 认证 Platform API Key
+    2. 获取/创建访客
+    3. 分配客服（如未分配）
+    4. 检查 AI 状态
+    5. 调用 AI 服务并流式返回
+    
+    支持两种模式：
+        - 流式模式（默认）：SSE 事件流，实时推送 AI 回复
+        - 非流式模式：一次性返回完整 JSON 响应
+        - 后台模式：立即返回，AI 在后台处理并推送到 WuKongIM
+    """
+    # ------------------- 第1步：验证平台 API Key -------------------
+    platform, project = chat_service.validate_platform_and_project(req.api_key, db)
+
+    # ------------------- 第2步：获取或创建访客 -------------------
+    # get_or_create_visitor 会处理访客状态重置（如果之前是 CLOSED 状态）
+    visitor, visitor_changed = await get_or_create_visitor(
+        db=db,
+        platform=platform,
+        platform_open_id=req.from_uid,
+        nickname=req.visitor_name,
+        avatar_url=req.visitor_avatar,
+    )
+
+    # 如果访客信息有变化，通知 WuKongIM 更新访客资料
+    if visitor_changed:
+        channel_id_for_update = build_visitor_channel_id(visitor.id)
+        await wukongim_client.send_visitor_profile_updated(
+            visitor_id=str(visitor.id),
+            channel_id=channel_id_for_update,
+            channel_type=CHANNEL_TYPE_CUSTOMER_SERVICE,
+        )
+
+    # ------------------- 第3步：准备频道和会话ID -------------------
+    if req.channel_id:
+        channel_id_enc = req.channel_id
+    else:
+        channel_id_enc = build_visitor_channel_id(visitor.id)
+
+    channel_type = req.channel_type if req.channel_type is not None else CHANNEL_TYPE_CUSTOMER_SERVICE
+    session_id = get_session_id(f"{visitor.id}-vtr", channel_id_enc, channel_type)
+
+    # ------------------- 第3.1步：解析媒体URL -------------------
+    # 对于图片/文件消息，使用存储后端解析 URL（可能是相对路径、本地地址等）
+    if req.msg_type in {MessageType.IMAGE, MessageType.FILE}:
+        from app.services.storage import get_storage
+        storage = get_storage()
+        req.message = storage.resolve_url(req.message)
+
+    # ------------------- 第3.2步：转发用户消息到 WuKongIM -------------------
+    # 将用户消息也推送到 WuKongIM，便于客户端展示
+    if req.forward_user_message_to_wukongim:
+        await chat_service.send_user_message_to_wukongim(
+            from_uid=f"{visitor.id}-vtr",
+            channel_id=channel_id_enc,
+            channel_type=channel_type,
+            content=req.message,
+            msg_type=req.msg_type,
+            extra=req.extra,
+        )
+
+    # ------------------- 第3.5步：分配客服（如未分配） -------------------
+    assigned_staff_id = None
+    if visitor.is_unassigned:
+        # 尝试通过路由规则分配客服
+        transfer_result = await transfer_to_staff(
+            db=db,
+            visitor_id=visitor.id,
+            project_id=project.id,
+            source=AssignmentSource.RULE,
+            visitor_message=req.message,
+            add_to_queue_if_no_staff=True,
+            ai_disabled=visitor.ai_disabled,
+        )
+        
+        # 分配失败处理
+        if not transfer_result.success:
+            error_data = {
+                "success": False,
+                "event_type": "error",
+                "message": transfer_result.message,
+                "visitor_id": str(visitor.id),
+            }
+            if req.stream is False:
+                return error_data
+            async def transfer_error_gen():
+                yield chat_service.sse_format({"event_type": "error", "data": error_data})
+            return StreamingResponse(transfer_error_gen(), media_type="text/event-stream")
+        
+        # 无可用客服，加入排队
+        if not transfer_result.assigned_staff_id:
+            queued_data = {
+                "success": False,
+                "event_type": "queued",
+                "message": transfer_result.message,
+                "visitor_id": str(visitor.id),
+                "queue_position": transfer_result.queue_position,
+            }
+            if req.stream is False:
+                return queued_data
+            async def no_staff_gen():
+                yield chat_service.sse_format({"event_type": "queued", "data": queued_data})
+            return StreamingResponse(no_staff_gen(), media_type="text/event-stream")
+        
+        assigned_staff_id = transfer_result.assigned_staff_id
+        
+        # 通知访客资料更新
+        await wukongim_client.send_visitor_profile_updated(
+            visitor_id=str(visitor.id),
+            channel_id=channel_id_enc,
+            channel_type=channel_type,
+        )
+
+    # ------------------- 第4步：确定消息发送者 -------------------
+    # AI 回复的消息应该以客服身份发送（assigned_staff_id-staff）
+    if assigned_staff_id:
+        wukongim_from_uid = f"{assigned_staff_id}-staff"
+    else:
+        # 检查是否有开放会话且有分配的客服
+        open_session = db.query(VisitorSession).filter(
+            VisitorSession.visitor_id == visitor.id,
+            VisitorSession.status == SessionStatus.OPEN.value,
+            VisitorSession.staff_id.isnot(None),
+        ).first()
+        
+        if open_session and open_session.staff_id:
+            wukongim_from_uid = f"{open_session.staff_id}-staff"
+        else:
+            # 没有分配的客服，返回错误
+            error_data = {
+                "success": False,
+                "event_type": "error",
+                "message": "No staff assigned to this visitor",
+                "visitor_id": str(visitor.id),
+            }
+            if req.stream is False:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=error_data
+                )
+            async def no_staff_error_gen():
+                yield chat_service.sse_format({"event_type": "error", "data": error_data})
+            return StreamingResponse(no_staff_error_gen(), media_type="text/event-stream")
+
+    # ------------------- 第5步：检查 AI 状态 -------------------
+    ai_disabled = chat_service.is_ai_disabled(platform, visitor)
+    
+    # ------------------- 第6步：AI 禁用时的处理 -------------------
+    if ai_disabled:
+        # 区分"辅助模式"（等待人工回复）和"完全禁用"
+        is_assist_mode = (
+            getattr(visitor, "ai_disabled", None) is None
+            and getattr(platform, "ai_mode", None) == "assist"
+        )
+        event_type = "assist_mode" if is_assist_mode else "ai_disabled"
+        message = (
+            "Human service requested, AI is in assist mode (requires staff response)" 
+            if is_assist_mode 
+            else "AI responses are disabled for this visitor/platform (check platform settings)"
+        )
+        
+        error_data = {
+            "success": False,
+            "event_type": event_type,
+            "message": message,
+        }
+        if req.stream is False:
+            return error_data
+        async def disabled_gen():
+            yield chat_service.sse_format({"event_type": event_type, "data": error_data})
+        return StreamingResponse(disabled_gen(), media_type="text/event-stream")
+
+    # ------------------- 第7步：AI 启用 - 调用 AI 服务 -------------------
+    agent_runtime_kwargs = _build_platform_agent_kwargs(platform)
+    response_client_msg_no = f"ai_{uuid4().hex}"
+
+    # 更新访客最后消息统计
+    visitor.is_last_message_from_ai = True
+    visitor.is_last_message_from_visitor = False
+    visitor.last_client_msg_no = response_client_msg_no
+    db.add(visitor)
+    db.commit()
+
+    # ------------------- 第8步：后台模式（仅推送到 WuKongIM） -------------------
+    if req.wukongim_only:
+        # 在后台异步处理 AI 交互，不等待结果
+        asyncio.create_task(chat_service.run_background_ai_interaction(
+            project_id=str(project.id),
+            user_id=str(visitor.id),
+            message=req.message,
+            channel_id=channel_id_enc,
+            channel_type=channel_type,
+            client_msg_no=response_client_msg_no,
+            from_uid=wukongim_from_uid,
+            session_id=session_id,
+            system_message=req.system_message,
+            expected_output=req.expected_output,
+            **agent_runtime_kwargs,
+        ))
+
+        accepted_data = {
+            "success": True,
+            "event_type": "accepted",
+            "message": "Request accepted, AI processing queued in background",
+            "visitor_id": str(visitor.id),
+        }
+        if req.stream is False:
+            return accepted_data
+        async def accepted_gen():
+            yield chat_service.sse_format({"event_type": "accepted", "data": accepted_data})
+        return StreamingResponse(accepted_gen(), media_type="text/event-stream")
+
+    # ------------------- 第9步：非流式模式 -------------------
+    if req.stream is False:
+        result = await chat_service.handle_ai_response_non_stream(
+            project_id=str(project.id),
+            visitor_id=str(visitor.id),
+            message=req.message,
+            channel_id=channel_id_enc,
+            channel_type=channel_type,
+            client_msg_no=response_client_msg_no,
+            from_uid=wukongim_from_uid,
+            session_id=session_id,
+            system_message=req.system_message,
+            expected_output=req.expected_output,
+            **agent_runtime_kwargs,
+        )
+        
+        if not result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get("error", "AI processing failed")
+            )
+            
+        return {
+            "success": True,
+            "message": result["content"],
+            "visitor_id": str(visitor.id),
+        }
+
+    # ------------------- 第10步：流式模式 -------------------
+    async def ai_event_generator() -> Any:
+        async for event_payload in chat_service.process_ai_stream_to_wukongim(
+            project_id=str(project.id),
+            user_id=str(visitor.id),
+            message=req.message,
+            channel_id=channel_id_enc,
+            channel_type=channel_type,
+            client_msg_no=response_client_msg_no,
+            from_uid=wukongim_from_uid,
+            session_id=session_id,
+            system_message=req.system_message,
+            expected_output=req.expected_output,
+            **agent_runtime_kwargs,
+        ):
+            yield chat_service.sse_format(event_payload)
+
+    return StreamingResponse(ai_event_generator(), media_type="text/event-stream")
+
+
+# ============================================================================
+# 2. 员工发送消息（通过平台服务）
+# ============================================================================
+
+@router.post(
+    "/messages/send",
+    tags=["Chat"],
+    summary="Send message via platform service",
+    description="Forward a staff-authenticated outbound message to the Platform Service",
+)
+async def staff_send_platform_message(
+    req: StaffSendPlatformMessageRequest,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(require_permission("chat:send")),
+) -> Response:
+    """
+    员工通过平台服务发送消息。
+    
+    此端点用于客服人员向访客发送消息，消息通过 Platform Service 转发。
+    需要 chat:send 权限。
+    
+    流程：
+        1. 验证频道类型（仅支持客服频道 251）
+        2. 解析访客 ID
+        3. 验证员工是否分配到此频道
+        4. 验证访客和平台状态
+        5. 构建请求并转发到 Platform Service
+    """
+    # ---------- 1. 验证频道类型 ----------
+    if req.channel_type != CHANNEL_TYPE_CUSTOMER_SERVICE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only customer service channels (type 251) are supported",
+        )
+
+    # ---------- 2. 解析访客 ID ----------
+    try:
+        visitor_uuid = parse_visitor_channel_id(req.channel_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid channel_id format")
+
+    # ---------- 3. 验证员工频道成员资格 ----------
+    membership = (
+        db.query(ChannelMember)
+        .filter(
+            ChannelMember.channel_id == req.channel_id,
+            ChannelMember.channel_type == req.channel_type,
+            ChannelMember.member_id == current_user.id,
+            ChannelMember.member_type == MEMBER_TYPE_STAFF,
+            ChannelMember.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Staff not assigned to this channel")
+
+    # ---------- 4. 查询访客及平台信息 ----------
+    visitor = (
+        db.query(Visitor)
+        .options(joinedload(Visitor.platform))
+        .filter(
+            Visitor.id == visitor_uuid,
+            Visitor.project_id == current_user.project_id,
+            Visitor.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not visitor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visitor not found")
+
+    platform = visitor.platform
+    if not platform or platform.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Visitor platform is unavailable")
+    if not platform.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Visitor platform is disabled")
+    if not platform.api_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Platform API key is missing")
+    if platform.project_id != current_user.project_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied for visitor platform")
+
+    # ---------- 5. 构建转发请求 ----------
+    target_url = f"{settings.PLATFORM_SERVICE_URL.rstrip('/')}/v1/messages/send"
+    
+    # 解析有效载荷中的媒体 URL
+    payload = req.payload.copy()
+    from app.services.storage import get_storage
+    storage = get_storage()
+    for key in ["url", "image_url", "file_url"]:
+        if key in payload:
+            payload[key] = storage.resolve_url(payload[key])
+
+    outbound_payload: Dict[str, Any] = {
+        "platform_api_key": platform.api_key,
+        "from_uid": f"{current_user.id}-staff",
+        "platform_open_id": visitor.platform_open_id,
+        "channel_id": req.channel_id,
+        "channel_type": req.channel_type,
+        "payload": payload,
+        "client_msg_no": req.client_msg_no or f"staff_{uuid4().hex}",
+    }
+
+    # ---------- 6. 发送请求 ----------
+    headers = {"Content-Type": "application/json"}
+    if settings.PLATFORM_SERVICE_API_KEY:
+        headers["Authorization"] = f"Bearer {settings.PLATFORM_SERVICE_API_KEY}"
+
+    try:
+        async with httpx.AsyncClient(timeout=settings.PLATFORM_SERVICE_TIMEOUT) as client:
+            resp = await client.post(target_url, json=outbound_payload, headers=headers)
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Platform Service timeout")
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Platform Service request error: {exc}",
+        )
+
+    # ---------- 7. 返回响应 ----------
+    hop_by_hop = {
+        "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+        "te", "trailers", "transfer-encoding", "upgrade", "content-length",
+    }
+    passthrough_headers = {k: v for k, v in resp.headers.items() if k.lower() not in hop_by_hop}
+    media_type = resp.headers.get("content-type")
+    return Response(content=resp.content, status_code=resp.status_code, headers=passthrough_headers, media_type=media_type)
+
+
+# ============================================================================
+# 3. 文件上传
+# ============================================================================
+
+@router.post("/upload", response_model=ChatFileUploadResponse, tags=["Chat"])
+async def chat_file_upload(
+    file: UploadFile = File(...),
+    channel_id: str = Form(...),
+    channel_type: int = Form(...),
+    platform_api_key: Optional[str] = Form(None),
+    x_platform_api_key: Optional[str] = Header(None, alias="X-Platform-API-Key"),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    db: Session = Depends(get_db),
+):
+    """
+    上传聊天文件。
+    
+    支持两种认证方式：
+        1. JWT（员工）- 可上传到客服频道和个人频道
+        2. Platform API Key（访客）- 可上传到客服频道
+    
+    流程：
+        1. 认证
+        2. 访问权限验证（基于频道类型）
+        3. 文件类型/大小验证
+        4. 构建存储路径
+        5. 读取文件到内存缓冲区
+        6. 通过存储后端上传
+        7. 持久化元数据
+        8. 返回文件信息
+    """
+    # ---------- 1. 认证 ----------
+    plat_key = platform_api_key or x_platform_api_key
+    current_user, platform = chat_service.authenticate_staff_or_platform(db, credentials, plat_key)
+
+    if not current_user and not platform:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+
+    # 确定项目上下文
+    if current_user:
+        project_id = current_user.project_id
+        uploaded_by = current_user.username
+    else:
+        assert platform is not None
+        project_id = platform.project_id
+        uploaded_by = "visitor"
+
+    # ---------- 2. 访问权限验证 ----------
+    if channel_type == CHANNEL_TYPE_CUSTOMER_SERVICE:
+        try:
+            visitor_uuid = parse_visitor_channel_id(channel_id)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid channel_id format")
+
+        visitor = (
+            db.query(Visitor)
+            .filter(Visitor.id == visitor_uuid, Visitor.deleted_at.is_(None))
+            .first()
+        )
+        if not visitor:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visitor not found")
+
+        if platform:
+            if visitor.platform_id != platform.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform not authorized for channel")
+        else:
+            if visitor.project_id != project_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to channel")
+
+    elif channel_type == 1:  # 个人频道
+        # 员工频道
+        if channel_id.endswith("-staff"):
+            if not current_user:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform cannot upload to staff channel")
+            staff_id_str = channel_id[:-6]
+            try:
+                if UUID(staff_id_str) != current_user.id:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to staff channel")
+            except Exception:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid staff channel_id")
+        else:
+            # 访客个人频道
+            try:
+                vis_uuid = UUID(channel_id)
+            except Exception:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid visitor channel_id")
+            visitor = db.query(Visitor).filter(Visitor.id == vis_uuid, Visitor.deleted_at.is_(None)).first()
+            if not visitor or visitor.project_id != project_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to visitor channel")
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported channel_type")
+
+    # ---------- 3. 验证文件类型/大小 ----------
+    allowed_exts = set(settings.ALLOWED_UPLOAD_EXTENSIONS or [])
+    original_name = file.filename or "upload.bin"
+    sanitized_name = sanitize_filename(original_name)
+    ext = sanitized_name.rsplit(".", 1)[-1].lower() if "." in sanitized_name else ""
+
+    mime = file.content_type or mimetypes.guess_type(sanitized_name)[0] or "application/octet-stream"
+
+    if allowed_exts:
+        if not ext or ext not in allowed_exts:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File type not allowed")
+    else:
+        if settings.ALLOWED_FILE_TYPES and mime not in set(settings.ALLOWED_FILE_TYPES):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="MIME type not allowed")
+
+    max_bytes = int(settings.MAX_UPLOAD_SIZE_MB) * 1024 * 1024 if settings.MAX_UPLOAD_SIZE_MB else int(settings.MAX_FILE_SIZE)
+
+    # ---------- 4. 构建存储路径 ----------
+    ts_ms = int(time.time() * 1000)
+    rand = secrets.token_hex(4)
+    fname = f"{ts_ms}_{rand}_{sanitized_name}"
+
+    date_dir = time.strftime("%Y-%m-%d")
+    rel_path = f"chat/{project_id}/{channel_type}/{channel_id}/{date_dir}/{fname}"
+
+    # ---------- 5. 读取文件到内存缓冲区并验证大小 ----------
+    from io import BytesIO
+    buffer = BytesIO()
+    total = 0
+    try:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_bytes:
+                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File too large")
+            buffer.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"File read failed: {e}")
+    
+    buffer.seek(0)
+
+    # ---------- 6. 通过存储后端上传 ----------
+    from app.services.storage import get_storage
+    storage = get_storage()
+    try:
+        file_url = await storage.upload(buffer, rel_path, mime)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"File storage failed: {e}")
+
+    # ---------- 7. 持久化元数据 ----------
+    chat_file = ChatFile(
+        project_id=project_id,
+        channel_id=channel_id,
+        channel_type=channel_type,
+        file_name=original_name,
+        file_path=rel_path,
+        file_size=total,
+        file_type=mime,
+        uploaded_by_staff_id=(current_user.id if current_user else None),
+        uploaded_by_platform_id=(platform.id if platform else None),
+    )
+    db.add(chat_file)
+    db.commit()
+    db.refresh(chat_file)
+
+    # ---------- 8. 构建响应 ----------
+    final_url = storage.get_file_access_url(str(chat_file.id), file_url)
+    
+    return ChatFileUploadResponse(
+        file_id=str(chat_file.id),
+        file_name=original_name,
+        file_size=total,
+        file_type=mime,
+        file_url=final_url,
+        channel_id=channel_id,
+        channel_type=channel_type,
+        uploaded_at=chat_file.created_at,
+        uploaded_by=uploaded_by,
+    )
+
+
+# ============================================================================
+# 4. 文件下载
+# ============================================================================
+
+@router.get("/files/{file_id}", tags=["Chat"])
+async def get_chat_file(
+    file_id: UUID,
+    platform_api_key: Optional[str] = None,
+    x_platform_api_key: Optional[str] = Header(None, alias="X-Platform-API-Key"),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    db: Session = Depends(get_db),
+):
+    """
+    通过 ID 获取聊天文件。
+    
+    默认允许公开访问，但如果提供了认证信息，会验证访问权限。
+    支持本地文件直接返回，适用于本地存储后端。
+    """
+    # ---------- 1. 查找文件元数据 ----------
+    chat_file = (
+        db.query(ChatFile)
+        .filter(ChatFile.id == file_id, ChatFile.deleted_at.is_(None))
+        .first()
+    )
+    if not chat_file:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    # ---------- 2. 可选认证/访问验证 ----------
+    plat_key = platform_api_key or x_platform_api_key
+    current_user, platform = chat_service.authenticate_staff_or_platform(db, credentials, plat_key)
+
+    if current_user and chat_file.project_id != current_user.project_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to file")
+
+    if platform and not current_user:
+        if chat_file.channel_type == CHANNEL_TYPE_CUSTOMER_SERVICE:
+            try:
+                visitor_uuid = parse_visitor_channel_id(chat_file.channel_id)
+            except ValueError:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file channel encoding")
+            visitor = (
+                db.query(Visitor)
+                .filter(Visitor.id == visitor_uuid, Visitor.deleted_at.is_(None))
+                .first()
+            )
+            if not visitor:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visitor not found")
+            if visitor.platform_id != platform.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform not authorized for file")
+        else:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform cannot access this file")
+
+    if plat_key and not platform and not current_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid platform_api_key")
+
+    # ---------- 3. 构建路径并返回文件 ----------
+    base_dir = Path(settings.UPLOAD_BASE_DIR).resolve()
+    file_path = (base_dir / chat_file.file_path).resolve()
+    try:
+        file_path.relative_to(base_dir)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Invalid file path")
+
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File missing from storage")
+
+    # 构建响应头（支持中文文件名）
+    ascii_name = get_safe_ascii_filename(chat_file.file_name, str(chat_file.id))
+    quoted_safe_name = quote(chat_file.file_name or file_path.name, safe="")
+
+    headers = {
+        "Content-Disposition": f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quoted_safe_name}",
+        "Content-Length": str(chat_file.file_size or file_path.stat().st_size),
+    }
+
+    return FileResponse(
+        path=str(file_path),
+        media_type=chat_file.file_type or "application/octet-stream",
+        headers=headers,
+    )
+
+
+# ============================================================================
+# 5. OpenAI 兼容接口
+# ============================================================================
+
+@router.post(
+    "/completions",
+    summary="OpenAI-compatible chat completion",
+    tags=["Chat"],
+)
+async def chat_completion_openai_compatible(
+    req: OpenAIChatCompletionRequest,
+    x_platform_api_key: str = Header(..., alias="X-Platform-API-Key"),
+    db: Session = Depends(get_db),
+):
+    """
+    OpenAI 兼容的聊天完成接口。
+    
+    完全兼容 OpenAI ChatGPT API 格式，支持：
+        - 标准请求/响应格式
+        - 流式响应（SSE）
+        - 消息历史
+        - 用户标识
+    
+    认证方式：X-Platform-API-Key 头
+    """
+    # ---------- 1. 验证 Platform API Key ----------
+    platform, project = chat_service.validate_platform_and_project(x_platform_api_key, db)
+
+    # ---------- 2. 从 OpenAI 格式提取消息 ----------
+    user_message, system_message, platform_open_id = chat_service.extract_messages_from_openai_format(
+        req.messages, req.user
+    )
+
+    # ---------- 3. 获取或创建访客 ----------
+    visitor, visitor_changed = await get_or_create_visitor(
+        db=db,
+        platform=platform,
+        platform_open_id=platform_open_id,
+        nickname=req.user,
+    )
+    
+    if visitor_changed:
+        channel_id_for_update = build_visitor_channel_id(visitor.id)
+        await wukongim_client.send_visitor_profile_updated(
+            visitor_id=str(visitor.id),
+            channel_id=channel_id_for_update,
+            channel_type=CHANNEL_TYPE_CUSTOMER_SERVICE,
+        )
+
+    # ---------- 4. 准备频道和会话 ID ----------
+    client_msg_no = f"openai_{uuid4().hex}"
+    channel_id_enc = build_visitor_channel_id(visitor.id)
+    channel_type = CHANNEL_TYPE_CUSTOMER_SERVICE
+    session_id = get_session_id(f"{visitor.id}-vtr", channel_id_enc, channel_type)
+
+    # 转发用户消息到 WuKongIM
+    await chat_service.send_user_message_to_wukongim(
+        from_uid=f"{visitor.id}-vtr",
+        channel_id=channel_id_enc,
+        channel_type=channel_type,
+        content=user_message,
+        extra=None,
+    )
+
+    # ---------- 5. 分配客服（如未分配） ----------
+    assigned_staff_id = None
+    if visitor.is_unassigned:
+        transfer_result = await transfer_to_staff(
+            db=db,
+            visitor_id=visitor.id,
+            project_id=project.id,
+            source=AssignmentSource.RULE,
+            visitor_message=user_message,
+            add_to_queue_if_no_staff=True,
+            ai_disabled=visitor.ai_disabled,
+        )
+        
+        if not transfer_result.success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Transfer failed: {transfer_result.message}"
+            )
+        
+        if not transfer_result.assigned_staff_id:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"No staff available. {transfer_result.message}"
+            )
+        
+        assigned_staff_id = transfer_result.assigned_staff_id
+        
+        await wukongim_client.send_visitor_profile_updated(
+            visitor_id=str(visitor.id),
+            channel_id=channel_id_enc,
+            channel_type=channel_type,
+        )
+
+    # ---------- 6. 准备消息发送者 ----------
+    if assigned_staff_id:
+        wukongim_from_uid = f"{assigned_staff_id}-staff"
+    else:
+        open_session = db.query(VisitorSession).filter(
+            VisitorSession.visitor_id == visitor.id,
+            VisitorSession.status == SessionStatus.OPEN.value,
+            VisitorSession.staff_id.isnot(None),
+        ).first()
+        
+        if open_session and open_session.staff_id:
+            wukongim_from_uid = f"{open_session.staff_id}-staff"
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="No staff assigned to this visitor"
+            )
+
+    # ---------- 7. 检查 AI 状态 ----------
+    ai_disabled = chat_service.is_ai_disabled(platform, visitor)
+    
+    if ai_disabled:
+        is_assist_mode = (
+            getattr(visitor, "ai_disabled", None) is None
+            and getattr(platform, "ai_mode", None) == "assist"
+        )
+        status_code = status.HTTP_202_ACCEPTED if is_assist_mode else status.HTTP_403_FORBIDDEN
+        detail = (
+            "Human service requested, AI is in assist mode (requires staff response)" 
+            if is_assist_mode 
+            else "AI responses are disabled for this visitor/platform (check platform settings)"
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail=detail
+        )
+
+    # ---------- 8. 调用 AI 服务 ----------
+    agent_runtime_kwargs = _build_platform_agent_kwargs(platform)
+    response_client_msg_no = f"ai_{uuid4().hex}"
+
+    visitor.is_last_message_from_ai = True
+    visitor.is_last_message_from_visitor = False
+    visitor.last_client_msg_no = response_client_msg_no
+    db.add(visitor)
+    db.commit()
+    
+    # ---------- 9. 生成完成 ID 和时间戳 ----------
+    completion_id = f"chatcmpl-{uuid4().hex[:24]}"
+    created_timestamp = int(time.time())
+    model_name = "tgo-ai"
+
+    # ---------- 10. 流式响应 ----------
+    if req.stream:
+        async def openai_stream_generator():
+            try:
+                async for event_payload in chat_service.process_ai_stream_to_wukongim(
+                    project_id=str(project.id),
+                    user_id=str(visitor.id),
+                    message=user_message,
+                    channel_id=channel_id_enc,
+                    channel_type=channel_type,
+                    client_msg_no=response_client_msg_no,
+                    from_uid=wukongim_from_uid,
+                    session_id=session_id,
+                    system_message=system_message,
+                    **agent_runtime_kwargs,
+                ):
+                    event_type = event_payload.get("event_type")
+                    data = event_payload.get("data") or {}
+
+                    if event_type == "agent_content_chunk":
+                        chunk_text = data.get("content_chunk") or data.get("content")
+                        if chunk_text:
+                            chunk = OpenAIChatCompletionChunk(
+                                id=completion_id,
+                                created=created_timestamp,
+                                model=model_name,
+                                choices=[
+                                    OpenAIChatCompletionChunkChoice(
+                                        index=0,
+                                        delta=OpenAIChatCompletionDelta(content=chunk_text),
+                                        finish_reason=None,
+                                    )
+                                ],
+                            )
+                            yield f"data: {chunk.model_dump_json()}\n\n"
+                    elif event_type in ("workflow_completed", "agent_response_complete"):
+                        final_chunk = OpenAIChatCompletionChunk(
+                            id=completion_id,
+                            created=created_timestamp,
+                            model=model_name,
+                            choices=[
+                                OpenAIChatCompletionChunkChoice(
+                                    index=0,
+                                    delta=OpenAIChatCompletionDelta(),
+                                    finish_reason="stop",
+                                )
+                            ],
+                        )
+                        yield f"data: {final_chunk.model_dump_json()}\n\n"
+                        yield "data: [DONE]\n\n"
+                        break
+
+            except Exception as e:
+                error_chunk = {"error": {"message": str(e), "type": "server_error"}}
+                yield f"data: {json.dumps(error_chunk)}\n\n"
+
+        return StreamingResponse(
+            openai_stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+
+    # ---------- 11. 非流式响应 ----------
+    result = await chat_service.handle_ai_response_non_stream(
+        project_id=str(project.id),
+        visitor_id=str(visitor.id),
+        message=user_message,
+        channel_id=channel_id_enc,
+        channel_type=channel_type,
+        client_msg_no=response_client_msg_no,
+        from_uid=wukongim_from_uid,
+        session_id=session_id,
+        system_message=system_message,
+        **agent_runtime_kwargs,
+    )
+    
+    if not result["success"]:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.get("error", "AI processing failed")
+        )
+
+    # ---------- 12. 估算 Token 使用量并构建响应 ----------
+    prompt_tokens, completion_tokens, total_tokens = chat_service.estimate_token_usage(
+        req.messages, result["content"]
+    )
+
+    return chat_service.build_openai_completion_response(
+        completion_id=completion_id,
+        created_timestamp=created_timestamp,
+        model=model_name,
+        completion_text=result["content"],
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens
+    )
+
+
+# ============================================================================
+# 6. 员工与 Agent 聊天
+# ============================================================================
+
+@router.post(
+    "/agent",
+    response_model=StaffAgentChatResponse,
+    summary="Staff chat with AI agent",
+    tags=["Chat"],
+)
+async def staff_agent_chat(
+    req: StaffAgentChatRequest,
+    db: Session = Depends(get_db),
+    current_user: Staff = Depends(require_permission("chat:send")),
+) -> StaffAgentChatResponse:
+    """
+    员工与 AI Agent 聊天。
+    
+    员工可以通过此端点与指定的 AI Agent 进行对话。
+    AI 的回复通过 WuKongIM 推送到员工的聊天界面。
+    
+    流程：
+        1. 验证员工权限
+        2. 构建 Agent 频道
+        3. 在后台处理 AI 交互
+        4. 立即返回成功状态
+    
+    Args:
+        req: 请求体（包含消息、agent_id、system_message 等）
+        current_user: 当前登录员工
+    
+    Returns:
+        StaffAgentChatResponse: 接受状态
+    """
+    # ---------- 1. 验证项目 ----------
+    project = current_user.project
+    if not project or not project.api_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Staff is not linked to a valid project"
+        )
+
+    # ---------- 2. 构建 Agent 频道 ----------
+    channel_id = f"{req.agent_id}-agent"
+    channel_type = 1  # 个人频道类型
+
+    # ---------- 3. 准备会话 ID ----------
+    client_msg_no = f"staff_agent_{uuid4().hex}"
+    staff_uid = f"{current_user.id}-staff"
+    session_id = get_session_id(staff_uid, channel_id, channel_type)
+
+    # ---------- 4. 转发员工消息到 WuKongIM ----------
+    await chat_service.send_user_message_to_wukongim(
+        from_uid=staff_uid,
+        channel_id=channel_id,
+        channel_type=channel_type,
+        content=req.message,
+        extra=None,
+    )
+
+    # ---------- 5. 在后台处理 AI 交互 ----------
+    ai_sender_uid = channel_id  # AI 以 Agent 身份发送消息
+    
+    asyncio.create_task(chat_service.run_background_ai_interaction(
+        project_id=str(current_user.project_id),
+        user_id=staff_uid,
+        message=req.message,
+        channel_id=staff_uid,
+        channel_type=channel_type,
+        client_msg_no=client_msg_no,
+        from_uid=ai_sender_uid,
+        session_id=session_id,
+        system_message=req.system_message,
+        expected_output=req.expected_output,
+        agent_id=str(req.agent_id),
+    ))
+
+    # ---------- 6. 返回成功响应 ----------
+    return StaffAgentChatResponse(
+        success=True,
+        message="Request accepted, processing in background",
+        client_msg_no=client_msg_no,
+    )
+
+
+# ============================================================================
+# 7. UI 用户操作（已弃用）
+# ============================================================================
+
+@router.post(
+    "/ui/action",
+    response_model=UIUserActionResponse,
+    summary="Handle UI user interaction",
+    tags=["Chat", "UI"],
+    description="Receives a userAction from the json-render UI renderer and routes it back to the AI agent as a contextual query.",
+    deprecated=True,
+)
+async def handle_ui_user_action(
+    req: UIUserActionRequest,
+    current_user: Staff = Depends(require_permission("chat:send")),
+) -> UIUserActionResponse:
+    """
+    将 UI 用户操作转换为 AI 查询并在后台处理。
+    
+    已弃用：此功能已被其他端点替代。
+    """
+    project = current_user.project
+    if not project or not project.api_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Staff is not linked to a valid project",
+        )
+
+    user_action_payload = {"actionName": req.action_name, "context": req.context}
+    query = chat_service.convert_ui_user_action_to_query(user_action_payload)
+
+    client_msg_no = f"ui_action_{uuid4().hex}"
+    staff_uid = f"{current_user.id}-staff"
+    session_id = get_session_id(staff_uid, req.channel_id, req.channel_type)
+
+    agent_runtime_kwargs: dict[str, str] = {}
+    if req.agent_id is not None:
+        agent_runtime_kwargs["agent_id"] = str(req.agent_id)
+    ai_sender_uid = req.channel_id
+
+    asyncio.create_task(chat_service.run_background_ai_interaction(
+        project_id=str(current_user.project_id),
+        user_id=staff_uid,
+        message=query,
+        channel_id=staff_uid,
+        channel_type=req.channel_type,
+        client_msg_no=client_msg_no,
+        from_uid=ai_sender_uid,
+        session_id=session_id,
+        **agent_runtime_kwargs,
+    ))
+
+    return UIUserActionResponse(
+        success=True,
+        message="UI action accepted, processing in background",
+        client_msg_no=client_msg_no,
+    )
+
+
+# ============================================================================
+# 8. 清除会话记忆
+# ============================================================================
+
+@router.delete(
+    "/memory",
+    summary="清除会话记忆",
+    tags=["Chat"],
+    description="""清除智能体会话的 AI 记忆，并发送系统消息通知。""",
+)
+async def clear_chat_memory(
+    channel_id: str = Query(..., description="频道 ID"),
+    channel_type: int = Query(..., description="频道类型"),
+    current_user: Staff = Depends(require_permission("chat:send")),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    清除智能体会话的 AI 记忆。
+    
+    此操作会：
+        1. 构建 AI 服务的 session_id
+        2. 记录清除位置（用于后续消息引用）
+        3. 调用 AI 服务清除记忆
+        4. 向频道发送 "memory_cleared" 系统消息
+    
+    清除后，AI 将忘记之前的对话上下文，重新开始。
+    """
+    # ---------- 1. 构建 session_id ----------
+    staff_uid = f"{current_user.id}-staff"
+    session_id = get_session_id(staff_uid, channel_id, channel_type)
+    
+    # ---------- 2. 记录清除位置 ----------
+    max_seq = await wukongim_client.get_channel_max_message_seq(
+        channel_id=channel_id,
+        channel_type=channel_type,
+        login_uid=staff_uid,
+    )
+    
+    if max_seq is not None:
+        existing = db.query(ChannelMemoryClearance).filter(
+            ChannelMemoryClearance.user_id == current_user.id,
+            ChannelMemoryClearance.user_type == ClearanceUserType.STAFF.value,
+            ChannelMemoryClearance.channel_id == channel_id,
+            ChannelMemoryClearance.channel_type == channel_type,
+        ).first()
+
+        if existing:
+            existing.cleared_message_seq = max_seq
+            existing.updated_at = datetime.utcnow()
+        else:
+            db.add(ChannelMemoryClearance(
+                project_id=current_user.project_id,
+                user_id=current_user.id,
+                user_type=ClearanceUserType.STAFF.value,
+                channel_id=channel_id,
+                channel_type=channel_type,
+                cleared_message_seq=max_seq,
+            ))
+        db.commit()
+
+    # ---------- 3. 调用 AI 服务清除记忆 ----------
+    ai_client = AIServiceClient()
+    await ai_client.clear_session_memory(
+        project_id=str(current_user.project_id),
+        session_id=session_id,
+        user_id=staff_uid,
+    )
+    
+    # ---------- 4. 发送系统消息到 WuKongIM ----------
+    # 确定消息发送者和目标频道
+    from_uid = staff_uid
+    if channel_type == 1:
+        from_uid = channel_id
+        msg_channel_id = staff_uid
+    else:
+        msg_channel_id = channel_id
+    
+    try:
+        await wukongim_client.send_system_message(
+            channel_id=msg_channel_id,
+            channel_type=channel_type,
+            from_uid=from_uid,
+            content="Memory cleared, AI will restart the conversation",
+            msg_type=MessageType.MEMORY_CLEARED,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to send memory cleared system message: {e}")
+    
+    return {"success": True, "message": "Memory cleared successfully"}

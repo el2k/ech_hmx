@@ -1,0 +1,67 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+.cursor/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode/ directory contains launch.json and settings.json for
+# Visual Studio Code. users of VS Code should check this into their source
+# control repository. https://code.visualstudio.com/docs/editor/versioncontrol#_should-i-check-in-the-vscode-folder
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/App.framework
+**/ios/Flutter/App.podspec
+**/ios/Flutter/App.framework.dSYM
+**/ios/Runner/GeneratedPluginRegistrant.[mh]
+**/android/local.properties
+**/android/**/generated
+**/android/app/debug.keystore
+**/android/app/profile.keystore
+**/android/app/release.keystore
+**/android/key.properties
+**/web/manifest.json
+**/web/favicon.png
+**/web/icons/
+**/web/index.html
+**/build/
+**/build_runner_report.json
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/pubspec.lock
+**/pubspec_overrides.yaml
+
+# Symbolication related
+**/ios/DerivedData/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/ephemeral/
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GoogleService-Info.plist
+**/android/app/google-services.json
+
+# Exceptions to above rules
+!**/ios/Runner/AppDelegate.swift
+!**/ios/Runner/Info.plist
+!**/ios/Runner/Main.storyboard
+!**/ios/Runner/Assets.xcassets/
+!**/ios/Runner/Base.lproj/
+

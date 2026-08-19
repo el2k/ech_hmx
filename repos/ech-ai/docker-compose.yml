@@ -1,0 +1,30 @@
+include:
+  - docker-compose-base.yml
+
+services:
+  # TGO AI Service
+  tgo-ai-service:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@postgres-ai:5432/tgo_ai_service
+      SECRET_KEY: your-super-secret-key-change-this-in-production
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: >
+      sh -c "
+        poetry run alembic upgrade head &&
+        poetry run uvicorn app.main:app --host 0.0.0.0 --port 8081 --reload
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

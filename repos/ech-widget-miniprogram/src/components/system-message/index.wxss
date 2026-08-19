@@ -1,0 +1,15 @@
+.system-message {
+  display: flex;
+  justify-content: center;
+  padding: 16rpx 32rpx;
+}
+
+.system-text {
+  font-size: 24rpx;
+  color: #999;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 8rpx 24rpx;
+  border-radius: 16rpx;
+  max-width: 80%;
+  text-align: center;
+}

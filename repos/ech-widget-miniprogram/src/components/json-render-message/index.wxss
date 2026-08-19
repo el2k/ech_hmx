@@ -1,0 +1,26 @@
+.jr-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.jr-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.cursor {
+  display: inline-block;
+  width: 4rpx;
+  height: 28rpx;
+  background: #333;
+  margin-left: 4rpx;
+  animation: blink 1s step-end infinite;
+  vertical-align: text-bottom;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}

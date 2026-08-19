@@ -1,0 +1,45 @@
+{
+  "name": "tgo-widget-js",
+  "private": true,
+  "version": "0.1.0",
+  "homepage": ".",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --port 5174"
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.13.1",
+    "@emotion/react": "^11.13.5",
+    "@emotion/styled": "^11.13.0",
+    "@json-render/core": "^0.11.0",
+    "@json-render/react": "^0.11.0",
+    "@tailwindcss/vite": "^4.1.18",
+    "dompurify": "^3.1.6",
+    "easyjssdk": "^2.0.0",
+    "highlight.js": "^11.11.1",
+    "i18next": "^25.7.3",
+    "i18next-browser-languagedetector": "^8.2.0",
+    "lucide-react": "^0.545.0",
+    "marked": "^16.4.1",
+    "marked-highlight": "^2.2.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^16.5.0",
+    "react-icons": "^5.5.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@emotion/babel-plugin": "^11.12.0",
+    "@types/dompurify": "^3.2.0",
+    "@types/marked": "^6.0.0",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "baseline-browser-mapping": "^2.9.11",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.0"
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+}

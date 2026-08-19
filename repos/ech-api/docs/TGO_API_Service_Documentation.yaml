@@ -1,0 +1,1987 @@
+openapi: 3.0.3
+info:
+  title: TGO-Tech API Service
+  description: |
+    **TGO-Tech API Service** - Core Business Logic Microservice
+    
+    This service handles user management, visitor interactions, and business operations for the TGO-Tech customer service platform.
+    
+    **Service Responsibilities:**
+    - User authentication and authorization
+    - Visitor management and tracking
+    - Staff operations and assignments
+    - Tagging and categorization system
+    - Platform integrations
+    
+    **Architecture:**
+    - Microservice architecture with clear separation of concerns
+    - Multi-tenant isolation using project-scoped authentication
+    - Event-driven communication with AI Service
+    - RESTful API design with comprehensive error handling
+    
+    **Authentication:**
+    - Dual authentication support: JWT tokens and API keys
+    - JWT Authentication: Contains authorization info, skips project validation
+    - API Key Authentication: Validates against project table for access control
+    - All endpoints support both authentication methods
+
+    **Authentication Examples:**
+    ```
+    # JWT Authentication (service-to-service or user session)
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    # API Key Authentication (project-scoped access)
+    X-API-Key: ak_live_1234567890abcdef
+    ```
+    
+    **Inter-Service Communication:**
+    - Publishes project events for AI Service synchronization
+    - Provides project validation endpoints for AI Service
+    - Handles staff-agent linking with AI Service coordination
+  version: 1.0.0
+  contact:
+    name: TGO-Tech API Support
+    email: api-support@tgo-tech.com
+  license:
+    name: Proprietary
+    url: https://tgo-tech.com/license
+
+servers:
+  - url: https://api.tgo-tech.com/v1
+    description: Production API Service
+  - url: https://staging-api.tgo-tech.com/v1
+    description: Staging API Service
+  - url: http://localhost:8080/v1
+    description: Local Development API Service
+
+security:
+  - ApiKeyAuth: []
+  - JwtAuth: []
+
+tags:
+  - name: Projects
+    description: Project management and multi-tenant operations
+  - name: Staff
+    description: Staff management and authentication
+  - name: Visitors
+    description: Visitor management and tracking
+  - name: Assignments
+    description: Visitor-to-staff assignment operations
+  - name: Tags
+    description: Tagging and categorization system
+  - name: Platforms
+    description: Communication platform integrations
+
+paths:
+  # =====================================================
+  # PROJECT MANAGEMENT
+  # =====================================================
+  /projects:
+    get:
+      summary: List projects
+      description: |
+        Retrieve a list of projects. This endpoint is typically used by system administrators
+        to manage multiple tenant projects.
+      tags: [Projects]
+      security:
+        - ApiKeyAuth: []
+        - JwtAuth: []
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+
+    post:
+      summary: Create project
+      description: |
+        Create a new project (tenant). This automatically generates an API key for the project
+        and publishes a project creation event for AI Service synchronization.
+      tags: [Projects]
+      security:
+        - ApiKeyAuth: []
+        - JwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                  example: "Acme Corp Customer Service"
+                  description: "Human-readable project name"
+      responses:
+        '201':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+  /projects/{project_id}:
+    get:
+      summary: Get project details
+      description: Retrieve detailed information about a specific project
+      tags: [Projects]
+      security:
+        - ApiKeyAuth: []
+        - JwtAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+    patch:
+      summary: Update project
+      description: |
+        Update project information. This publishes a project update event
+        for AI Service synchronization.
+      tags: [Projects]
+      security:
+        - ApiKeyAuth: []
+        - JwtAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                  description: "Updated project name"
+      responses:
+        '200':
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+    delete:
+      summary: Delete project (soft delete)
+      description: |
+        Soft delete a project. This publishes a project deletion event
+        for AI Service synchronization and cleanup.
+      tags: [Projects]
+      security:
+        - ApiKeyAuth: []
+        - JwtAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '204':
+          description: Project deleted successfully
+
+  # =====================================================
+  # STAFF MANAGEMENT
+  # =====================================================
+  /staff:
+    get:
+      summary: List staff members
+      description: Retrieve all staff members for the authenticated project
+      tags: [Staff]
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [user, agent]
+          description: Filter staff by role
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [online, offline, busy]
+          description: Filter staff by status
+      responses:
+        '200':
+          description: List of staff members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StaffResponse'
+
+    post:
+      summary: Create staff member
+      description: |
+        Create a new staff member. For agent role, this coordinates with AI Service
+        to validate the agent_id and establish the staff-agent relationship.
+      tags: [Staff]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, role]
+              properties:
+                username:
+                  type: string
+                  maxLength: 50
+                  example: "john.doe"
+                  description: "Unique username for authentication"
+                nickname:
+                  type: string
+                  maxLength: 100
+                  example: "John Doe"
+                  description: "Display name for the staff member"
+                avatar_url:
+                  type: string
+                  format: uri
+                  description: "URL to staff member's avatar image"
+                role:
+                  type: string
+                  enum: [user, agent]
+                  example: "user"
+                  description: "Staff role: 'user' for human staff, 'agent' for AI agents"
+                agent_id:
+                  type: string
+                  format: uuid
+                  description: "Required when role=agent. References AI agent from AI Service"
+                status:
+                  type: string
+                  enum: [online, offline, busy]
+                  default: offline
+                  description: "Initial status of the staff member"
+      responses:
+        '201':
+          description: Staff member created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffResponse'
+
+  /staff/{staff_id}:
+    get:
+      summary: Get staff member details
+      description: Retrieve detailed information about a specific staff member
+      tags: [Staff]
+      parameters:
+        - $ref: '#/components/parameters/StaffId'
+      responses:
+        '200':
+          description: Staff member details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffResponse'
+
+    patch:
+      summary: Update staff member
+      description: Update staff member information and status
+      tags: [Staff]
+      parameters:
+        - $ref: '#/components/parameters/StaffId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nickname:
+                  type: string
+                  maxLength: 100
+                  description: "Updated display name"
+                avatar_url:
+                  type: string
+                  format: uri
+                  description: "Updated avatar URL"
+                role:
+                  type: string
+                  enum: [user, agent]
+                  description: "Updated role (requires agent_id validation for agent role)"
+                agent_id:
+                  type: string
+                  format: uuid
+                  description: "Updated agent reference (validated with AI Service)"
+                status:
+                  type: string
+                  enum: [online, offline, busy]
+                  description: "Updated status"
+      responses:
+        '200':
+          description: Staff member updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffResponse'
+
+    delete:
+      summary: Delete staff member (soft delete)
+      description: Soft delete a staff member and handle agent relationship cleanup
+      tags: [Staff]
+      parameters:
+        - $ref: '#/components/parameters/StaffId'
+      responses:
+        '204':
+          description: Staff member deleted successfully
+
+  # =====================================================
+  # VISITOR MANAGEMENT
+  # =====================================================
+  /visitors:
+    get:
+      summary: List visitors
+      description: |
+        Retrieve all visitors for the authenticated project with filtering and pagination.
+        Visitors represent external users/customers interacting through various platforms.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Visitors]
+      parameters:
+        - name: platform_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter visitors by platform ID
+        - name: is_online
+          in: query
+          schema:
+            type: boolean
+          description: Filter visitors by online status
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search visitors by name, nickname, or platform_open_id
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of visitors to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of visitors to skip
+      responses:
+        '200':
+          description: List of visitors with pagination metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VisitorResponse'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationMetadata'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create visitor
+      description: |
+        Create a new visitor record for the authenticated project.
+        Visitors are created when external users first interact with the platform.
+
+        **Platform Selection:**
+        - **Option 1**: Provide `platform_id` to specify an exact platform
+        - **Option 2**: Provide `platform_type` to use the default platform for that type
+        - If both are provided, `platform_id` takes precedence
+        - If neither is provided, the request will fail with validation error
+
+        **Default Platform Behavior:**
+        When using `platform_type`, the system will automatically select the first active
+        platform of that type for the project. If no active platform of the specified
+        type exists, the request will fail with a 404 error.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Visitors]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform_open_id]
+              anyOf:
+                - required: [platform_id]
+                  properties:
+                    platform_id:
+                      type: string
+                      format: uuid
+                - required: [platform_type]
+                  properties:
+                    platform_type:
+                      type: string
+                      enum: [website, wechat, whatsapp, telegram, email, sms, facebook, instagram, twitter, linkedin, discord, slack, teams, webchat, phone]
+              properties:
+                platform_id:
+                  type: string
+                  format: uuid
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+                  description: "Associated platform ID (required if platform_type not provided)"
+                platform_type:
+                  type: string
+                  enum: [website, wechat, whatsapp, telegram, email, sms, facebook, instagram, twitter, linkedin, discord, slack, teams, webchat, phone]
+                  example: "wechat"
+                  description: "Platform type to use default platform (required if platform_id not provided)"
+                platform_open_id:
+                  type: string
+                  maxLength: 255
+                  example: "wx_user_123456"
+                  description: "Visitor unique identifier on this platform"
+                name:
+                  type: string
+                  maxLength: 100
+                  example: "Alice Johnson"
+                  description: "Visitor real name"
+                nickname:
+                  type: string
+                  maxLength: 100
+                  example: "alice_j"
+                  description: "Visitor nickname on this platform"
+                avatar_url:
+                  type: string
+                  maxLength: 255
+                  format: uri
+                  example: "https://example.com/avatar.jpg"
+                  description: "Visitor avatar URL on this platform"
+                phone_number:
+                  type: string
+                  maxLength: 30
+                  example: "+1-555-0123"
+                  description: "Visitor phone number on this platform"
+                email:
+                  type: string
+                  maxLength: 255
+                  format: email
+                  example: "alice@example.com"
+                  description: "Visitor email on this platform"
+            examples:
+              with_platform_id:
+                summary: Create visitor with specific platform ID
+                description: Traditional approach using exact platform ID
+                value:
+                  platform_id: "123e4567-e89b-12d3-a456-426614174000"
+                  platform_open_id: "wx_user_123456"
+                  name: "Alice Johnson"
+                  nickname: "alice_j"
+                  avatar_url: "https://example.com/avatar.jpg"
+                  phone_number: "+1-555-0123"
+                  email: "alice@example.com"
+              with_platform_type:
+                summary: Create visitor with platform type (uses default platform)
+                description: New approach using platform type to auto-select default platform
+                value:
+                  platform_type: "wechat"
+                  platform_open_id: "wx_user_789012"
+                  name: "Bob Customer"
+                  nickname: "bob_c"
+                  avatar_url: "https://example.com/bob_avatar.jpg"
+                  phone_number: "+1-555-0456"
+                  email: "bob@example.com"
+      responses:
+        '201':
+          description: Visitor created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorResponse'
+        '400':
+          description: Invalid request data or validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing_platform_info:
+                  summary: Missing platform information
+                  value:
+                    error:
+                      code: "VALIDATION_ERROR"
+                      message: "Either platform_id or platform_type must be provided"
+                      details:
+                        field: "platform_id/platform_type"
+                        requirement: "One of platform_id or platform_type is required"
+                    request_id: "req_123e4567-e89b-12d3-a456-426614174000"
+                invalid_platform_type:
+                  summary: Invalid platform type
+                  value:
+                    error:
+                      code: "INVALID_PLATFORM_TYPE"
+                      message: "Invalid platform type provided"
+                      details:
+                        provided: "invalid_platform"
+                        allowed: ["website", "wechat", "whatsapp", "telegram", "email", "sms", "facebook", "instagram", "twitter", "linkedin", "discord", "slack", "teams", "webchat", "phone"]
+                    request_id: "req_123e4567-e89b-12d3-a456-426614174001"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No active platform found for the specified type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                no_default_platform:
+                  summary: No default platform available
+                  value:
+                    error:
+                      code: "NO_DEFAULT_PLATFORM"
+                      message: "No active platform found for the specified platform type"
+                      details:
+                        platform_type: "telegram"
+                        suggestion: "Create an active platform of this type or use a specific platform_id"
+                    request_id: "req_123e4567-e89b-12d3-a456-426614174002"
+        '409':
+          description: Visitor with platform_open_id already exists on this platform
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /visitors/{visitor_id}:
+    get:
+      summary: Get visitor details
+      description: |
+        Retrieve detailed information about a specific visitor including
+        their platform information and activity status.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Visitors]
+      parameters:
+        - $ref: '#/components/parameters/VisitorId'
+      responses:
+        '200':
+          description: Visitor details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorResponse'
+        '404':
+          description: Visitor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      summary: Update visitor
+      description: |
+        Update visitor information and activity status.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Visitors]
+      parameters:
+        - $ref: '#/components/parameters/VisitorId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                  description: "Updated visitor real name"
+                nickname:
+                  type: string
+                  maxLength: 100
+                  description: "Updated visitor nickname"
+                avatar_url:
+                  type: string
+                  maxLength: 255
+                  format: uri
+                  description: "Updated visitor avatar URL"
+                phone_number:
+                  type: string
+                  maxLength: 30
+                  description: "Updated visitor phone number"
+                email:
+                  type: string
+                  maxLength: 255
+                  format: email
+                  description: "Updated visitor email"
+                is_online:
+                  type: boolean
+                  description: "Updated visitor online status"
+                last_visit_time:
+                  type: string
+                  format: date-time
+                  description: "Updated last visit time"
+                last_offline_time:
+                  type: string
+                  format: date-time
+                  description: "Updated last offline time"
+      responses:
+        '200':
+          description: Visitor updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Visitor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete visitor (soft delete)
+      description: |
+        Soft delete a visitor record. This will also remove any active
+        assignments and clean up related data.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Visitors]
+      parameters:
+        - $ref: '#/components/parameters/VisitorId'
+      responses:
+        '204':
+          description: Visitor deleted successfully
+        '404':
+          description: Visitor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =====================================================
+  # VISITOR ASSIGNMENT MANAGEMENT
+  # =====================================================
+  /assignments:
+    get:
+      summary: List visitor assignments
+      description: |
+        Retrieve all visitor-to-staff assignments for the authenticated project.
+        Assignments track the history of visitor-staff relationships and current assignments.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Assignments]
+      parameters:
+        - name: visitor_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter assignments by visitor ID
+        - name: assigned_staff_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter assignments by currently assigned staff member
+        - name: assignment_type
+          in: query
+          schema:
+            type: string
+            enum: [assign, reassign, unassign, auto_assign]
+          description: Filter assignments by assignment type
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of assignments to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of assignments to skip
+      responses:
+        '200':
+          description: List of assignments with pagination metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VisitorAssignmentResponse'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationMetadata'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create visitor assignment
+      description: |
+        Create a new visitor-to-staff assignment. This establishes or changes
+        the relationship between a visitor and staff member.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Assignments]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitor_id, assignment_type]
+              properties:
+                visitor_id:
+                  type: string
+                  format: uuid
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+                  description: "Visitor to assign"
+                assigned_staff_id:
+                  type: string
+                  format: uuid
+                  example: "987fcdeb-51a2-43d1-b456-426614174000"
+                  description: "Staff member to assign (null for unassign)"
+                previous_staff_id:
+                  type: string
+                  format: uuid
+                  example: "456e7890-e89b-12d3-a456-426614174001"
+                  description: "Previously assigned staff member (for reassign)"
+                assigned_by_staff_id:
+                  type: string
+                  format: uuid
+                  example: "321fedcb-51a2-43d1-b456-426614174002"
+                  description: "Staff member making the assignment"
+                assignment_type:
+                  type: string
+                  enum: [assign, reassign, unassign, auto_assign]
+                  example: "assign"
+                  description: "Type of assignment operation"
+                notes:
+                  type: string
+                  example: "Customer needs help with billing inquiry"
+                  description: "Assignment notes"
+      responses:
+        '201':
+          description: Assignment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorAssignmentResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Visitor or staff member not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assignments/{assignment_id}:
+    get:
+      summary: Get assignment details
+      description: |
+        Retrieve detailed information about a specific visitor assignment
+        including visitor and staff member details.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Assignments]
+      parameters:
+        - $ref: '#/components/parameters/AssignmentId'
+      responses:
+        '200':
+          description: Assignment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorAssignmentResponse'
+        '404':
+          description: Assignment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      summary: Update assignment
+      description: |
+        Update assignment notes or other mutable fields.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Assignments]
+      parameters:
+        - $ref: '#/components/parameters/AssignmentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  description: "Updated assignment notes"
+      responses:
+        '200':
+          description: Assignment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorAssignmentResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assignment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete assignment
+      description: |
+        Delete an assignment record. This is typically used for cleanup
+        or when correcting assignment history.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Assignments]
+      parameters:
+        - $ref: '#/components/parameters/AssignmentId'
+      responses:
+        '204':
+          description: Assignment deleted successfully
+        '404':
+          description: Assignment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =====================================================
+  # TAG MANAGEMENT
+  # =====================================================
+  /tags:
+    get:
+      summary: List tags
+      description: |
+        Retrieve all tags for the authenticated project. Tags are used for
+        categorizing visitors and content with Base64 encoded IDs.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Tags]
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [visitor, knowledge]
+          description: Filter tags by category
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search tags by name
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Number of tags to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of tags to skip
+      responses:
+        '200':
+          description: List of tags with pagination metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TagResponse'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationMetadata'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create tag
+      description: |
+        Create a new tag for categorization purposes. The tag ID will be
+        automatically generated as Base64 encoded name + "@" + category.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Tags]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, category]
+              properties:
+                name:
+                  type: string
+                  maxLength: 50
+                  example: "VIP Customer"
+                  description: "Tag name"
+                category:
+                  type: string
+                  enum: [visitor, knowledge]
+                  example: "visitor"
+                  description: "Tag category"
+                weight:
+                  type: integer
+                  minimum: 0
+                  maximum: 10
+                  default: 0
+                  example: 8
+                  description: "Tag importance/priority weight (0-10)"
+                color:
+                  type: string
+                  maxLength: 20
+                  example: "#FF5733"
+                  description: "Tag color"
+                description:
+                  type: string
+                  maxLength: 255
+                  example: "High-value customer requiring priority support"
+                  description: "Tag description"
+      responses:
+        '201':
+          description: Tag created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Tag with this name already exists in the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tags/{tag_id}:
+    get:
+      summary: Get tag details
+      description: |
+        Retrieve detailed information about a specific tag using its
+        Base64 encoded ID.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Tags]
+      parameters:
+        - $ref: '#/components/parameters/TagId'
+      responses:
+        '200':
+          description: Tag details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagResponse'
+        '404':
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      summary: Update tag
+      description: |
+        Update tag information such as weight, color, or description.
+        Note that name and category cannot be changed as they form the ID.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Tags]
+      parameters:
+        - $ref: '#/components/parameters/TagId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weight:
+                  type: integer
+                  minimum: 0
+                  maximum: 10
+                  description: "Updated tag weight"
+                color:
+                  type: string
+                  maxLength: 20
+                  description: "Updated tag color"
+                description:
+                  type: string
+                  maxLength: 255
+                  description: "Updated tag description"
+      responses:
+        '200':
+          description: Tag updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete tag
+      description: |
+        Delete a tag. This will also remove the tag from all entities
+        where it was applied (visitors, content, etc.).
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Tags]
+      parameters:
+        - $ref: '#/components/parameters/TagId'
+      responses:
+        '204':
+          description: Tag deleted successfully
+        '404':
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =====================================================
+  # PLATFORM MANAGEMENT
+  # =====================================================
+  /platforms:
+    get:
+      summary: List platforms
+      description: |
+        Retrieve all communication platforms configured for the authenticated project.
+        Platforms represent different communication channels (WeChat, WhatsApp, etc.).
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Platforms]
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [website, wechat, whatsapp, telegram, email, sms, facebook, instagram, twitter, linkedin, discord, slack, teams, webchat, phone]
+          description: Filter platforms by type
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+          description: Filter platforms by active status
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of platforms to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of platforms to skip
+      responses:
+        '200':
+          description: List of platforms with pagination metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PlatformResponse'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationMetadata'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create platform
+      description: |
+        Create a new communication platform configuration. This establishes
+        a new channel through which visitors can interact with the system.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Platforms]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type]
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                  example: "WeChat Official Account"
+                  description: "Platform name"
+                type:
+                  type: string
+                  enum: [website, wechat, whatsapp, telegram, email, sms, facebook, instagram, twitter, linkedin, discord, slack, teams, webchat, phone]
+                  example: "wechat"
+                  description: "Platform type from predefined enum"
+                config:
+                  type: object
+                  example: {"app_id": "wx123456", "app_secret": "secret"}
+                  description: "Platform-specific configuration"
+                is_active:
+                  type: boolean
+                  default: true
+                  description: "Whether the platform is active"
+      responses:
+        '201':
+          description: Platform created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /platforms/{platform_id}:
+    get:
+      summary: Get platform details
+      description: |
+        Retrieve detailed information about a specific platform including
+        configuration and status information.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Platforms]
+      parameters:
+        - $ref: '#/components/parameters/PlatformId'
+      responses:
+        '200':
+          description: Platform details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformResponse'
+        '404':
+          description: Platform not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      summary: Update platform
+      description: |
+        Update platform configuration, status, or settings.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Platforms]
+      parameters:
+        - $ref: '#/components/parameters/PlatformId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                  description: "Updated platform name"
+                type:
+                  type: string
+                  enum: [website, wechat, whatsapp, telegram, email, sms, facebook, instagram, twitter, linkedin, discord, slack, teams, webchat, phone]
+                  description: "Updated platform type from predefined enum"
+                config:
+                  type: object
+                  description: "Updated platform configuration"
+                is_active:
+                  type: boolean
+                  description: "Updated platform active status"
+      responses:
+        '200':
+          description: Platform updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Platform not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete platform (soft delete)
+      description: |
+        Soft delete a platform. This will deactivate the platform and prevent
+        new interactions, but preserve historical data.
+
+        **Authentication:**
+        - JWT Authentication: Project access determined from token claims
+        - API Key Authentication: Project validated against project table
+      tags: [Platforms]
+      parameters:
+        - $ref: '#/components/parameters/PlatformId'
+      responses:
+        '204':
+          description: Platform deleted successfully
+        '404':
+          description: Platform not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied to project resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Project API key for tenant isolation. When using API key authentication,
+        the service validates project access against the project table to ensure
+        the key has permission to access the requested resources.
+    JwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer token containing authorization information. When using JWT
+        authentication, project table validation is skipped as the token contains
+        sufficient authorization data. Supports both user sessions and service-to-service
+        communication.
+
+  parameters:
+    ProjectId:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Project UUID
+
+    StaffId:
+      name: staff_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Staff UUID
+
+    VisitorId:
+      name: visitor_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Visitor UUID
+
+    TagId:
+      name: tag_id
+      in: path
+      required: true
+      schema:
+        type: string
+        maxLength: 255
+      description: Base64 encoded tag ID
+
+    AssignmentId:
+      name: assignment_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Assignment UUID
+
+    PlatformId:
+      name: platform_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Platform UUID
+
+  schemas:
+    # =====================================================
+    # CORE SCHEMAS
+    # =====================================================
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          maxLength: 255
+          example: "Acme Corp Customer Service"
+        api_key:
+          type: string
+          maxLength: 255
+          example: "ak_live_1234567890abcdef"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+
+    StaffResponse:
+      type: object
+      description: "Staff for API responses (excludes redundant project_id)"
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          maxLength: 50
+          example: "john.doe"
+        nickname:
+          type: string
+          maxLength: 100
+          example: "John Doe"
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        role:
+          type: string
+          enum: [user, agent]
+          example: "user"
+        status:
+          type: string
+          enum: [online, offline, busy]
+          example: "offline"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    VisitorResponse:
+      type: object
+      description: "Visitor for API responses (excludes redundant project_id)"
+      properties:
+        id:
+          type: string
+          format: uuid
+        platform_id:
+          type: string
+          format: uuid
+        platform_open_id:
+          type: string
+          maxLength: 255
+          example: "wx_user_123456"
+        name:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "Alice Johnson"
+        nickname:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "alice_j"
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        phone_number:
+          type: string
+          maxLength: 30
+          nullable: true
+          example: "+1-555-0123"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          nullable: true
+          example: "alice@example.com"
+        first_visit_time:
+          type: string
+          format: date-time
+        last_visit_time:
+          type: string
+          format: date-time
+        last_offline_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: "Most recent time visitor went offline"
+        is_online:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    TagResponse:
+      type: object
+      description: "Tag for API responses (excludes redundant project_id)"
+      properties:
+        id:
+          type: string
+          maxLength: 255
+          example: "VklQIEN1c3RvbWVyQHZpc2l0b3I="
+          description: "Base64 encoded ID: base64_encode(name + '@' + category)"
+        name:
+          type: string
+          maxLength: 50
+          example: "VIP Customer"
+        category:
+          type: string
+          enum: [visitor, knowledge]
+          example: "visitor"
+          description: "Tag category: 'visitor' for customer categorization, 'knowledge' for content categorization"
+        weight:
+          type: integer
+          minimum: 0
+          maximum: 10
+          default: 0
+          example: 8
+          description: "Tag importance/priority weight (0-10, higher values indicate higher priority)"
+        color:
+          type: string
+          maxLength: 20
+          nullable: true
+          example: "#FF5733"
+        description:
+          type: string
+          maxLength: 255
+          nullable: true
+          example: "High-value customer requiring priority support"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    VisitorAssignmentResponse:
+      type: object
+      description: "Visitor assignment for API responses (excludes redundant project_id)"
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        visitor_id:
+          type: string
+          format: uuid
+          example: "456e7890-e89b-12d3-a456-426614174001"
+          description: "Assigned visitor"
+        assigned_staff_id:
+          type: string
+          format: uuid
+          nullable: true
+          example: "789abcde-e89b-12d3-a456-426614174002"
+          description: "Currently assigned staff member"
+        previous_staff_id:
+          type: string
+          format: uuid
+          nullable: true
+          example: "321fedcb-51a2-43d1-b456-426614174003"
+          description: "Previously assigned staff member"
+        assigned_by_staff_id:
+          type: string
+          format: uuid
+          nullable: true
+          example: "654def98-51a2-43d1-b456-426614174004"
+          description: "Staff member who made the assignment"
+        assignment_type:
+          type: string
+          enum: [assign, reassign, unassign, auto_assign]
+          example: "assign"
+          description: "Type of assignment"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+          description: "When assignment was made"
+        notes:
+          type: string
+          nullable: true
+          example: "Customer needs help with billing inquiry"
+          description: "Assignment notes"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    PlatformResponse:
+      type: object
+      description: "Platform for API responses (excludes redundant project_id)"
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          maxLength: 100
+          example: "WeChat Official Account"
+          description: "Platform name"
+        type:
+          type: string
+          enum: [website, wechat, whatsapp, telegram, email, sms, facebook, instagram, twitter, linkedin, discord, slack, teams, webchat, phone]
+          example: "wechat"
+          description: "Platform type from predefined enum"
+        config:
+          type: object
+          nullable: true
+          example: {"app_id": "wx123456"}
+          description: "Platform-specific configuration (sensitive data excluded)"
+        is_active:
+          type: boolean
+          example: true
+          description: "Whether platform is active"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+
+    PaginationMetadata:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 150
+          description: "Total number of items"
+        limit:
+          type: integer
+          example: 20
+          description: "Number of items per page"
+        offset:
+          type: integer
+          example: 40
+          description: "Number of items skipped"
+        has_more:
+          type: boolean
+          example: true
+          description: "Whether there are more items available"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              example: "The request data is invalid"
+            details:
+              type: object
+              nullable: true
+              example: {"field": "email", "issue": "Invalid email format"}
+        request_id:
+          type: string
+          format: uuid
+          example: "req_123e4567-e89b-12d3-a456-426614174000"

@@ -1,0 +1,52 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "tgo-widget-miniprogram-example",
+  "appid": "wx408e1cad979db200",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": false,
+    "newFeature": true,
+    "nodeModules": true,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    },
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true
+  },
+  "compileType": "miniprogram",
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "file",
+        "value": "ci.js"
+      },
+      {
+        "type": "glob",
+        "value": "private.*.key"
+      },
+      {
+        "type": "file",
+        "value": "preview-qrcode.png"
+      }
+    ],
+    "include": []
+  },
+  "editorSetting": {}
+}

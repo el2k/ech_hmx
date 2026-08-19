@@ -1,0 +1,7 @@
+{
+  "component": true,
+  "usingComponents": {
+    "json-render-surface": "../json-render-surface/index",
+    "markdown-text": "../markdown-text/index"
+  }
+}

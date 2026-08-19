@@ -1,0 +1,6259 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TGO RAG Service",
+    "description": "TGO-Tech RAG (Retrieval-Augmented Generation) Service for document processing and semantic search",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health Check",
+        "description": "Comprehensive health check endpoint.\n\nReturns the overall health status of the service and its dependencies.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness Check",
+        "description": "Kubernetes readiness probe endpoint.\n\nReturns 200 if the service is ready to accept traffic, 503 otherwise.",
+        "operationId": "readiness_check_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/live": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness Check",
+        "description": "Kubernetes liveness probe endpoint.\n\nReturns 200 if the service is alive, 503 if it should be restarted.",
+        "operationId": "liveness_check_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "Monitoring"
+        ],
+        "summary": "Prometheus Metrics",
+        "description": "Prometheus metrics endpoint.\n\nReturns metrics in Prometheus format for monitoring and alerting.",
+        "operationId": "prometheus_metrics_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics/json": {
+      "get": {
+        "tags": [
+          "Monitoring"
+        ],
+        "summary": "Json Metrics",
+        "description": "JSON metrics endpoint for custom monitoring dashboards.\n\nReturns application metrics in JSON format.",
+        "operationId": "json_metrics_metrics_json_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collections": {
+      "get": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "List Collections",
+        "description": "Retrieve all collections for the specified project (via project_id) with filtering, pagination, and file counts.\n\nCollections are used to organize documents and files for RAG operations.\nAll results are scoped to the specified project.\nEach collection includes a file_count field showing the total number of associated files.\nSupports filtering by collection_type (file, website, qa).",
+        "operationId": "list_collections_v1_collections_get",
+        "parameters": [
+          {
+            "name": "display_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by collection display name (partial match)",
+              "title": "Display Name"
+            },
+            "description": "Filter by collection display name (partial match)"
+          },
+          {
+            "name": "collection_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CollectionTypeEnum"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by collection type: file, website, or qa",
+              "title": "Collection Type"
+            },
+            "description": "Filter by collection type: file, website, or qa"
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by tags (comma-separated list)",
+              "title": "Tags"
+            },
+            "description": "Filter by tags (comma-separated list)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of collections to return",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Number of collections to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of collections to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of collections to skip"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "Create Collection",
+        "description": "Create a new collection within the specified project for organizing documents and files.\n\nCollections help organize RAG content and can contain metadata about embedding models,\nchunk sizes, and other processing parameters. Collection is scoped to the specified project.\nSupports collection_type to specify the source: file, website, or qa.\n\nFor website collections:\n- If crawl_config contains a start_url, a WebsitePage record is automatically created\n- Crawling is triggered automatically using the start_url",
+        "operationId": "create_collection_v1_collections_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid input data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - request data validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collections/batch": {
+      "post": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "Get Collections Batch",
+        "description": "Retrieve detailed information for multiple collections by their IDs in a single request.\n\nThis endpoint allows efficient batch retrieval of collection details, reducing the number\nof HTTP requests needed. Only collections belonging to the specified project are returned.\n\nFeatures:\n- Batch retrieval of up to 50 collections per request\n- Includes file_count for each collection\n- Returns partial results if some collections are not found\n- Excludes soft-deleted collections from results\n- Proper filtering by project ownership\n\nThe response includes both found collections and a list of collection IDs that were\nnot found or not accessible, allowing clients to handle partial results appropriately.",
+        "operationId": "get_collections_batch_v1_collections_batch_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionBatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionBatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - too many collection IDs or invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - invalid UUIDs or empty array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collections/{collection_id}": {
+      "get": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "Get Collection",
+        "description": "Retrieve detailed information about a specific collection including metadata\nand optional statistics about contained documents and files. Collection must belong to the specified project.",
+        "operationId": "get_collection_v1_collections__collection_id__get",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "include_stats",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include document and file count statistics",
+              "default": false,
+              "title": "Include Stats"
+            },
+            "description": "Include document and file count statistics"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "Update Collection",
+        "description": "Update an existing collection's properties including display name, description,\ntags, and metadata. Only provided fields will be updated. Collection must belong\nto the specified project and cannot be soft-deleted.\n\nArgs:\n    collection_id: UUID of the collection to update\n    collection_data: Collection update data with optional fields\n    project_id: Project ID\n    db: Database session\n\nReturns:\n    Updated collection data\n\nRaises:\n    HTTPException: 404 if collection not found or not accessible\n    HTTPException: 400 if invalid input data provided\n    HTTPException: 422 if validation fails\n    HTTPException: 500 if database operation fails",
+        "operationId": "update_collection_v1_collections__collection_id__put",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid input data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - request data validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "Delete Collection",
+        "description": "Delete a specific collection by its UUID.\n\nBy default, performs a hard delete (permanent removal):\n- For website collections: deletes all WebsitePages, Files, FileDocuments, and physical files\n- For other collections: deletes all Files, FileDocuments, and physical files\n- Permanently removes the collection from the database\n\nIf hard_delete=False, performs a soft delete (sets deleted_at timestamp).\n\nCollection must belong to the specified project.",
+        "operationId": "delete_collection_v1_collections__collection_id__delete",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          },
+          {
+            "name": "hard_delete",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Perform hard delete (permanent removal). Set to False for soft delete.",
+              "default": true,
+              "title": "Hard Delete"
+            },
+            "description": "Perform hard delete (permanent removal). Set to False for soft delete."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Collection not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collections/{collection_id}/documents": {
+      "get": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "List Collection Documents",
+        "description": "Retrieve all documents within a specific collection with filtering and pagination.\n\nThis endpoint provides collection-scoped document access for RAG operations.\nAll results are scoped to the specified project.",
+        "operationId": "list_collection_documents_v1_collections__collection_id__documents_get",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "content_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by content type",
+              "title": "Content Type"
+            },
+            "description": "Filter by content type"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by language code",
+              "title": "Language"
+            },
+            "description": "Filter by language code"
+          },
+          {
+            "name": "min_confidence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 1,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum confidence score threshold",
+              "title": "Min Confidence"
+            },
+            "description": "Minimum confidence score threshold"
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Sort field",
+              "default": "created_at",
+              "title": "Sort By"
+            },
+            "description": "Sort field"
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Sort order",
+              "default": "desc",
+              "title": "Sort Order"
+            },
+            "description": "Sort order"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of documents to return",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Number of documents to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of documents to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of documents to skip"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collections/{collection_id}/documents/search": {
+      "post": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "Search Collection Documents",
+        "description": "Perform semantic search for documents within a specific collection.\n\nThis endpoint provides collection-scoped search capabilities for RAG operations.\nAll results are scoped to the specified project.",
+        "operationId": "search_collection_documents_v1_collections__collection_id__documents_search_post",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - invalid search request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error - search service failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collections/{collection_id}/pages": {
+      "get": {
+        "tags": [
+          "Collections"
+        ],
+        "summary": "List Collection Pages",
+        "description": "Retrieve all crawled pages for a specific website collection.\n\nThis endpoint returns the list of website pages that have been crawled\nand associated with the collection. Only works for collections with\ncollection_type='website'. Results are ordered by creation time (newest first).",
+        "operationId": "list_collection_pages_v1_collections__collection_id__pages_get",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of pages to return",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Number of pages to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of pages to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of pages to skip"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by page status",
+              "title": "Status"
+            },
+            "description": "Filter by page status"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsitePageListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Collection is not of type 'website'",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/files": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "List Files",
+        "description": "Retrieve all files for the specified project (via project_id) with filtering and pagination.\n\nFiles represent uploaded documents that are processed for RAG operations.\nAll results are scoped to the specified project.",
+        "operationId": "list_files_v1_files_get",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by collection ID",
+              "title": "Collection Id"
+            },
+            "description": "Filter by collection ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by processing status",
+              "title": "Status"
+            },
+            "description": "Filter by processing status"
+          },
+          {
+            "name": "content_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by MIME type",
+              "title": "Content Type"
+            },
+            "description": "Filter by MIME type"
+          },
+          {
+            "name": "uploaded_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by uploader",
+              "title": "Uploaded By"
+            },
+            "description": "Filter by uploader"
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by tags (comma-separated list)",
+              "title": "Tags"
+            },
+            "description": "Filter by tags (comma-separated list)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of files to return",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Number of files to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of files to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of files to skip"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Upload File",
+        "description": "Upload a new file for RAG processing within the specified project.\n\nThe file will be stored and queued for document extraction and embedding generation.\nSupported formats: PDF, Word documents, text files, and markdown files.\nAll files are scoped to the specified project.",
+        "operationId": "upload_file_v1_files_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_v1_files_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid file or missing filename",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File too large - exceeds maximum allowed size",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported media type - file type not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - request data validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error - file processing failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/files/{file_id}": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Get File",
+        "description": "Retrieve detailed information about a specific file including processing status\nand metadata about generated documents. File must belong to the specified project.",
+        "operationId": "get_file_v1_files__file_id__get",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Delete File",
+        "description": "Delete a specific file by its UUID. This will permanently delete:\n- The file record from the database\n- All associated document chunks (FileDocument records)\n- The physical file from storage\n\nFile must belong to the specified project.",
+        "operationId": "delete_file_v1_files__file_id__delete",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "File not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/files/{file_id}/documents": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "List File Documents",
+        "description": "Retrieve all document chunks generated from a specific file with filtering and pagination.\n\nThis endpoint provides access to the processed document chunks for RAG operations.",
+        "operationId": "list_file_documents_v1_files__file_id__documents_get",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "content_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by content type",
+              "title": "Content Type"
+            },
+            "description": "Filter by content type"
+          },
+          {
+            "name": "chunk_index",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by chunk index",
+              "title": "Chunk Index"
+            },
+            "description": "Filter by chunk index"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of documents to return",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Number of documents to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of documents to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of documents to skip"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/files/batch": {
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Upload Files Batch",
+        "description": "Upload multiple files for processing in a single batch request.\n\nThis endpoint allows uploading multiple files at once, providing better efficiency\nfor bulk operations. Each file is processed individually, and the response includes\nboth successful uploads and any failures with detailed error information.\n\nFeatures:\n- Maintains backward compatibility with single file uploads\n- Provides detailed error reporting for failed uploads\n- Returns comprehensive batch statistics\n- Applies common metadata (tags, description) to all files",
+        "operationId": "upload_files_batch_v1_files_batch_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_files_batch_v1_files_batch_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchFileUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid files or missing data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File too large - one or more files exceed maximum size",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported media type - one or more file types not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - request data validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error - batch processing failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/files/{file_id}/download": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Download File",
+        "description": "Download a file by its ID.\n\nDownloads the original file content with appropriate headers for browser download.\nThe file must belong to the specified project.\n\nSecurity features:\n- Validates file belongs to the specified project\n- Prevents directory traversal attacks\n- Verifies file exists and is not deleted\n- Supports Unicode filenames with proper encoding",
+        "operationId": "download_file_v1_files__file_id__download_get",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID",
+            "example": "11111111-1111-1111-1111-111111111111"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden - access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found or not accessible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error - file system error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/embedding-configs/batch-sync": {
+      "post": {
+        "tags": [
+          "Embedding Configs"
+        ],
+        "summary": "Batch upsert embedding configurations for multiple projects (no auth)",
+        "description": "Batch upsert embedding configs.\n\nBehavior per item:\n- Enforce dimensions == 1536 (phase 1 compatibility)\n- Upsert by (project_id, is_active=True): update if exists, else insert new\n- Continue on errors; return summary",
+        "operationId": "batch_sync_embedding_configs_v1_embedding_configs_batch_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmbeddingConfigBatchSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbeddingConfigBatchSyncResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/embedding-configs/{project_id}": {
+      "get": {
+        "tags": [
+          "Embedding Configs"
+        ],
+        "summary": "Get active embedding configuration for a project (no auth)",
+        "operationId": "get_active_config_v1_embedding_configs__project_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbeddingConfigResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/websites/pages": {
+      "get": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "List Pages",
+        "description": "List all pages in a collection.\n\nWhen tree_depth is specified, the response includes child pages in a hierarchical structure.\n- tree_depth=0 or None: Flat list (no children)\n- tree_depth=1: Include direct children only\n- tree_depth=2: Include children and grandchildren\n- tree_depth=-1: Include all descendants (unlimited depth)\n\nWhen no parent_page_id filter is specified and tree_depth \u003E 0, returns root pages\n(where parent_page_id IS NULL) with their children.",
+        "operationId": "list_pages_v1_websites_pages_get",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Collection ID",
+              "title": "Collection Id"
+            },
+            "description": "Collection ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by page status",
+              "title": "Status"
+            },
+            "description": "Filter by page status"
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by depth",
+              "title": "Depth"
+            },
+            "description": "Filter by depth"
+          },
+          {
+            "name": "parent_page_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by parent page ID",
+              "title": "Parent Page Id"
+            },
+            "description": "Filter by parent page ID"
+          },
+          {
+            "name": "tree_depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 10,
+                  "minimum": -1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Number of child levels to include. 0/None=no children, 1=direct children, -1=unlimited",
+              "title": "Tree Depth"
+            },
+            "description": "Number of child levels to include. 0/None=no children, 1=direct children, -1=unlimited"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of pages to return",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Number of pages to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of pages to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of pages to skip"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsitePageListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Add Page",
+        "description": "Add a page to crawl in a collection.\n\nThis will create a page record and trigger crawling.\nIf max_depth \u003E 0, discovered links will also be crawled.\n\nDeduplication:\n- If the URL already exists in the collection, it will be skipped",
+        "operationId": "add_page_v1_websites_pages_post",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Target collection ID",
+              "title": "Collection Id"
+            },
+            "description": "Target collection ID"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddPageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/websites/pages/{page_id}": {
+      "get": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Get Page",
+        "description": "Get details of a specific page.",
+        "operationId": "get_page_v1_websites_pages__page_id__get",
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Page Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsitePageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Page not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Delete Page",
+        "description": "Delete a page from the collection.\n\nThis performs a hard delete that also removes:\n- Associated File record (if any)\n- Associated FileDocument records (if any)\n- Physical file from storage (if any)",
+        "operationId": "delete_page_v1_websites_pages__page_id__delete",
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Page Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Page not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/websites/pages/{page_id}/recrawl": {
+      "post": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Recrawl Page",
+        "description": "Trigger re-crawling of an existing page.",
+        "operationId": "recrawl_page_v1_websites_pages__page_id__recrawl_post",
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Page Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddPageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Page not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/websites/progress": {
+      "get": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Get Crawl Progress",
+        "description": "Get crawl progress for a collection.",
+        "operationId": "get_crawl_progress_v1_websites_progress_get",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Collection ID",
+              "title": "Collection Id"
+            },
+            "description": "Collection ID"
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrawlProgressSchema"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/websites/pages/{page_id}/crawl-deeper": {
+      "post": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Crawl Deeper From Page",
+        "description": "Extract links from an existing page and add them to the crawl queue.\n\nThis endpoint allows deep crawling from a specific page that has already\nbeen crawled. It extracts all links from the page's content and adds\nnew URLs to the crawl queue.\n\nDeduplication rules:\n- URLs already in the collection are skipped\n- URLs currently being crawled are skipped\n- New pages have depth = source_page.depth + 1\n- Pages exceeding max_depth are not added",
+        "operationId": "crawl_deeper_from_page_v1_websites_pages__page_id__crawl_deeper_post",
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Page Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrawlDeeperRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrawlDeeperResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Page not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collections/{collection_id}/qa-pairs": {
+      "post": {
+        "tags": [
+          "QA Knowledge Base"
+        ],
+        "summary": "Create a QA pair",
+        "description": "Add a single question-answer pair to a QA collection.",
+        "operationId": "create_qa_pair_v1_collections__collection_id__qa_pairs_post",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QAPairCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QAPairResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or duplicate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "QA Knowledge Base"
+        ],
+        "summary": "List QA pairs",
+        "description": "Get paginated list of QA pairs in a collection.",
+        "operationId": "list_qa_pairs_v1_collections__collection_id__qa_pairs_get",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Page size",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Page size"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Page offset",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Page offset"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by category",
+              "title": "Category"
+            },
+            "description": "Filter by category"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status",
+              "title": "Status"
+            },
+            "description": "Filter by status"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QAPairListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/qa-categories": {
+      "get": {
+        "tags": [
+          "QA Knowledge Base"
+        ],
+        "summary": "List QA categories",
+        "description": "Get distinct QA pair categories for a project, optionally filtered by collection.",
+        "operationId": "list_qa_categories_v1_qa_categories_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          },
+          {
+            "name": "collection_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional collection ID to filter",
+              "title": "Collection Id"
+            },
+            "description": "Optional collection ID to filter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QACategoryListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/qa-pairs/{qa_pair_id}": {
+      "get": {
+        "tags": [
+          "QA Knowledge Base"
+        ],
+        "summary": "Get a QA pair",
+        "description": "Get a single QA pair by ID.",
+        "operationId": "get_qa_pair_v1_qa_pairs__qa_pair_id__get",
+        "parameters": [
+          {
+            "name": "qa_pair_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Pair Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QAPairResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "QA pair not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "QA Knowledge Base"
+        ],
+        "summary": "Update a QA pair",
+        "description": "Update an existing QA pair.",
+        "operationId": "update_qa_pair_v1_qa_pairs__qa_pair_id__put",
+        "parameters": [
+          {
+            "name": "qa_pair_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Pair Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QAPairUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QAPairResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "QA pair not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "QA Knowledge Base"
+        ],
+        "summary": "Delete a QA pair",
+        "description": "Soft delete a QA pair and its associated document.",
+        "operationId": "delete_qa_pair_v1_qa_pairs__qa_pair_id__delete",
+        "parameters": [
+          {
+            "name": "qa_pair_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Qa Pair Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "QA pair not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collections/{collection_id}/qa-pairs/batch": {
+      "post": {
+        "tags": [
+          "QA Knowledge Base"
+        ],
+        "summary": "Batch create QA pairs",
+        "description": "Create multiple QA pairs at once (max 1000).",
+        "operationId": "batch_create_qa_pairs_v1_collections__collection_id__qa_pairs_batch_post",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QAPairBatchCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QAPairBatchCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/collections/{collection_id}/qa-pairs/import": {
+      "post": {
+        "tags": [
+          "QA Knowledge Base"
+        ],
+        "summary": "Import QA pairs",
+        "description": "Import QA pairs from JSON or CSV format.",
+        "operationId": "import_qa_pairs_v1_collections__collection_id__qa_pairs_import_post",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Project ID",
+              "title": "Project Id"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QAPairImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QAPairBatchCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid format or data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddPageRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Url",
+            "description": "URL of the page to add",
+            "examples": [
+              "https://docs.python.org/3/"
+            ]
+          },
+          "parent_page_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Page Id",
+            "description": "Parent page ID. If provided, the new page will be a child of this page with depth = parent.depth + 1"
+          },
+          "max_depth": {
+            "type": "integer",
+            "maximum": 10,
+            "minimum": 0,
+            "title": "Max Depth",
+            "description": "Maximum crawl depth from this page (0 = only this page)",
+            "default": 0
+          },
+          "include_patterns": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Include Patterns",
+            "description": "URL patterns to include (glob patterns)"
+          },
+          "exclude_patterns": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Patterns",
+            "description": "URL patterns to exclude (glob patterns)"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrawlOptionsSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Crawl options (overrides collection defaults)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "AddPageRequest",
+        "description": "Schema for adding a page to crawl."
+      },
+      "AddPageResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the page was added successfully"
+          },
+          "page_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Id",
+            "description": "ID of the newly created page (if added)"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Status message"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Result status: 'added', 'exists', 'crawling'"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message",
+          "status"
+        ],
+        "title": "AddPageResponse",
+        "description": "Schema for add page response."
+      },
+      "BatchFileUploadResponse": {
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/BatchUploadSummary",
+            "description": "Batch upload summary statistics"
+          },
+          "successful_uploads": {
+            "items": {
+              "$ref": "#/components/schemas/FileUploadResponse"
+            },
+            "type": "array",
+            "title": "Successful Uploads",
+            "description": "List of successfully uploaded files"
+          },
+          "failed_uploads": {
+            "items": {
+              "$ref": "#/components/schemas/FileUploadError"
+            },
+            "type": "array",
+            "title": "Failed Uploads",
+            "description": "List of failed uploads with error details"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Overall batch status message",
+            "examples": [
+              "Batch upload completed: 4 successful, 1 failed"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "successful_uploads",
+          "failed_uploads",
+          "message"
+        ],
+        "title": "BatchFileUploadResponse",
+        "description": "Schema for batch file upload responses."
+      },
+      "BatchUploadSummary": {
+        "properties": {
+          "total_files": {
+            "type": "integer",
+            "title": "Total Files",
+            "description": "Total number of files in the batch",
+            "examples": [5]
+          },
+          "successful_uploads": {
+            "type": "integer",
+            "title": "Successful Uploads",
+            "description": "Number of successfully uploaded files",
+            "examples": [4]
+          },
+          "failed_uploads": {
+            "type": "integer",
+            "title": "Failed Uploads",
+            "description": "Number of failed uploads",
+            "examples": [1]
+          },
+          "total_size": {
+            "type": "integer",
+            "title": "Total Size",
+            "description": "Total size of all files in bytes",
+            "examples": [10485760]
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_files",
+          "successful_uploads",
+          "failed_uploads",
+          "total_size"
+        ],
+        "title": "BatchUploadSummary",
+        "description": "Schema for batch upload summary statistics."
+      },
+      "Body_upload_file_v1_files_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File",
+            "description": "File to upload for RAG processing"
+          },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id",
+            "description": "Collection ID to associate with the file"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional file description"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "Document language (ISO 639-1 code)"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Comma-separated list of tags"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "Project ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "project_id"
+        ],
+        "title": "Body_upload_file_v1_files_post"
+      },
+      "Body_upload_files_batch_v1_files_batch_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "List of files to upload"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Collection Id",
+            "description": "Collection ID to associate files with"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "Document language (auto-detect if not specified)",
+            "default": "auto"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional description for all files"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Comma-separated list of tags to apply to all files"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "Project ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files",
+          "collection_id",
+          "project_id"
+        ],
+        "title": "Body_upload_files_batch_v1_files_batch_post"
+      },
+      "CollectionBatchRequest": {
+        "properties": {
+          "collection_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Collection Ids",
+            "description": "List of collection UUIDs to retrieve (maximum 50 collections per request)",
+            "examples": [
+              [
+                "coll_123e4567-e89b-12d3-a456-426614174000",
+                "coll_987fcdeb-51a2-43d7-8f9e-123456789abc",
+                "coll_456789ab-cdef-1234-5678-9abcdef01234"
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "collection_ids"
+        ],
+        "title": "CollectionBatchRequest",
+        "description": "Schema for batch collection retrieval requests."
+      },
+      "CollectionBatchResponse": {
+        "properties": {
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionResponse"
+            },
+            "type": "array",
+            "title": "Collections",
+            "description": "List of successfully retrieved collections with full details"
+          },
+          "not_found": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Not Found",
+            "description": "List of collection IDs that were not found or not accessible"
+          },
+          "total_requested": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Total Requested",
+            "description": "Total number of collection IDs requested",
+            "examples": [3]
+          },
+          "total_found": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Total Found",
+            "description": "Total number of collections successfully retrieved",
+            "examples": [2]
+          }
+        },
+        "type": "object",
+        "required": [
+          "collections",
+          "not_found",
+          "total_requested",
+          "total_found"
+        ],
+        "title": "CollectionBatchResponse",
+        "description": "Schema for batch collection retrieval responses."
+      },
+      "CollectionCreateRequest": {
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Display Name",
+            "description": "Human-readable collection name",
+            "examples": [
+              "Product Documentation v2.1"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional collection description",
+            "examples": [
+              "Updated product documentation for RAG knowledge base"
+            ]
+          },
+          "collection_type": {
+            "$ref": "#/components/schemas/CollectionTypeEnum",
+            "description": "Type of collection: file, website, or qa",
+            "default": "file",
+            "examples": [
+              "file"
+            ]
+          },
+          "crawl_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crawl Config",
+            "description": "Crawl configuration for website collections (only used when collection_type is 'website').\n\nAvailable configuration options:\n- **start_url** (str, required): Starting URL for crawling\n- **max_pages** (int): Maximum number of pages to crawl (default: 100)\n- **max_depth** (int): Maximum crawl depth from start URL (default: 3)\n- **include_patterns** (list[str]): URL glob patterns to include (e.g., '*/docs/*')\n- **exclude_patterns** (list[str]): URL glob patterns to exclude (e.g., '*/admin/*')\n- **wait_for_selector** (str): CSS selector to wait for before extracting content\n- **timeout** (int): Page load timeout in seconds (default: 30)\n- **delay_between_requests** (float): Delay between requests in seconds (default: 1.0)\n- **respect_robots_txt** (bool): Whether to respect robots.txt (default: true)\n- **user_agent** (str): Custom user agent string\n- **headers** (dict): Custom HTTP headers\n- **js_rendering** (bool): Whether to render JavaScript (default: true)\n- **extract_images** (bool): Whether to extract image URLs (default: false)\n- **extract_links** (bool): Whether to extract external links (default: true)\n",
+            "examples": [
+              {
+                "delay_between_requests": 1,
+                "exclude_patterns": [
+                  "*/admin/*",
+                  "*/login/*"
+                ],
+                "extract_links": true,
+                "include_patterns": [
+                  "*/docs/*",
+                  "*/guide/*"
+                ],
+                "js_rendering": true,
+                "max_depth": 3,
+                "max_pages": 100,
+                "respect_robots_txt": true,
+                "start_url": "https://docs.example.com",
+                "timeout": 30,
+                "wait_for_selector": ".main-content"
+              }
+            ]
+          },
+          "collection_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Metadata",
+            "description": "Collection metadata (embedding model, chunk size, etc.)",
+            "examples": [
+              {
+                "chunk_overlap": 200,
+                "chunk_size": 1000,
+                "embedding_model": "text-embedding-ada-002",
+                "language": "en"
+              }
+            ]
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Collection tags for categorization and filtering",
+            "examples": [
+              [
+                "documentation",
+                "product",
+                "v2.1"
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "title": "CollectionCreateRequest",
+        "description": "Schema for creating a new collection."
+      },
+      "CollectionDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Collection unique identifier",
+            "examples": [
+              "coll_123e4567-e89b-12d3-a456-426614174000"
+            ]
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name",
+            "description": "Human-readable collection name",
+            "examples": [
+              "Product Documentation v2.1"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Collection description",
+            "examples": [
+              "Updated product documentation for RAG knowledge base"
+            ]
+          },
+          "collection_type": {
+            "$ref": "#/components/schemas/CollectionTypeEnum",
+            "description": "Type of collection: file, website, or qa",
+            "examples": [
+              "file"
+            ]
+          },
+          "crawl_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crawl Config",
+            "description": "Crawl configuration for website collections. Only present when collection_type is 'website'.\n\nContains settings such as:\n- start_url, max_pages, max_depth\n- include_patterns, exclude_patterns\n- timeout, delay_between_requests\n- js_rendering, extract_images, extract_links\n",
+            "examples": [
+              {
+                "exclude_patterns": [
+                  "*/admin/*"
+                ],
+                "include_patterns": [
+                  "*/docs/*"
+                ],
+                "js_rendering": true,
+                "max_depth": 3,
+                "max_pages": 100,
+                "start_url": "https://docs.example.com"
+              }
+            ]
+          },
+          "collection_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Metadata",
+            "description": "Collection metadata",
+            "examples": [
+              {
+                "chunk_overlap": 200,
+                "chunk_size": 1000,
+                "embedding_model": "text-embedding-ada-002",
+                "language": "en"
+              }
+            ]
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Collection tags for categorization and filtering",
+            "examples": [
+              [
+                "documentation",
+                "product",
+                "v2.1"
+              ]
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Collection creation timestamp",
+            "examples": [
+              "2024-01-15T10:30:00Z"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Collection last update timestamp",
+            "examples": [
+              "2024-01-15T10:30:00Z"
+            ]
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Collection deletion timestamp (if soft deleted)"
+          },
+          "file_count": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "File Count",
+            "description": "Total number of files associated with this collection",
+            "examples": [15]
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CollectionStats"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Collection statistics (when include_stats=true)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "collection_type",
+          "created_at",
+          "updated_at",
+          "file_count"
+        ],
+        "title": "CollectionDetailResponse",
+        "description": "Schema for detailed collection response with optional statistics."
+      },
+      "CollectionListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionResponse"
+            },
+            "type": "array",
+            "title": "Data",
+            "description": "List of collections"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMetadata",
+            "description": "Pagination metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "pagination"
+        ],
+        "title": "CollectionListResponse",
+        "description": "Schema for paginated collection list responses."
+      },
+      "CollectionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Collection unique identifier",
+            "examples": [
+              "coll_123e4567-e89b-12d3-a456-426614174000"
+            ]
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name",
+            "description": "Human-readable collection name",
+            "examples": [
+              "Product Documentation v2.1"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Collection description",
+            "examples": [
+              "Updated product documentation for RAG knowledge base"
+            ]
+          },
+          "collection_type": {
+            "$ref": "#/components/schemas/CollectionTypeEnum",
+            "description": "Type of collection: file, website, or qa",
+            "examples": [
+              "file"
+            ]
+          },
+          "crawl_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crawl Config",
+            "description": "Crawl configuration for website collections. Only present when collection_type is 'website'.\n\nContains settings such as:\n- start_url, max_pages, max_depth\n- include_patterns, exclude_patterns\n- timeout, delay_between_requests\n- js_rendering, extract_images, extract_links\n",
+            "examples": [
+              {
+                "exclude_patterns": [
+                  "*/admin/*"
+                ],
+                "include_patterns": [
+                  "*/docs/*"
+                ],
+                "js_rendering": true,
+                "max_depth": 3,
+                "max_pages": 100,
+                "start_url": "https://docs.example.com"
+              }
+            ]
+          },
+          "collection_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Metadata",
+            "description": "Collection metadata",
+            "examples": [
+              {
+                "chunk_overlap": 200,
+                "chunk_size": 1000,
+                "embedding_model": "text-embedding-ada-002",
+                "language": "en"
+              }
+            ]
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Collection tags for categorization and filtering",
+            "examples": [
+              [
+                "documentation",
+                "product",
+                "v2.1"
+              ]
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Collection creation timestamp",
+            "examples": [
+              "2024-01-15T10:30:00Z"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Collection last update timestamp",
+            "examples": [
+              "2024-01-15T10:30:00Z"
+            ]
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Collection deletion timestamp (if soft deleted)"
+          },
+          "file_count": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "File Count",
+            "description": "Total number of files associated with this collection",
+            "examples": [15]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "collection_type",
+          "created_at",
+          "updated_at",
+          "file_count"
+        ],
+        "title": "CollectionResponse",
+        "description": "Schema for collection API responses."
+      },
+      "CollectionSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query text",
+            "examples": [
+              "How to configure database settings"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Limit",
+            "description": "Maximum number of results to return",
+            "default": 10
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Offset",
+            "description": "Number of results to skip for pagination",
+            "default": 0
+          },
+          "min_score": {
+            "type": "number",
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Min Score",
+            "description": "Minimum relevance score threshold (0-1)",
+            "default": 0
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters",
+            "description": "Additional filters to apply to search results",
+            "examples": [
+              {
+                "content_type": [
+                  "paragraph",
+                  "heading"
+                ],
+                "language": "en",
+                "min_confidence": 0.8,
+                "tags": {
+                  "section": "installation"
+                }
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "CollectionSearchRequest",
+        "description": "Schema for collection-scoped search requests."
+      },
+      "CollectionStats": {
+        "properties": {
+          "document_count": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Document Count",
+            "description": "Total number of documents in collection",
+            "examples": [150]
+          },
+          "file_count": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "File Count",
+            "description": "Total number of files in collection",
+            "examples": [25]
+          },
+          "total_tokens": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Total Tokens",
+            "description": "Total tokens across all documents",
+            "examples": [45000]
+          },
+          "last_updated": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Updated",
+            "description": "Last time a document was added/updated",
+            "examples": [
+              "2024-01-15T14:30:00Z"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_count",
+          "file_count",
+          "total_tokens"
+        ],
+        "title": "CollectionStats",
+        "description": "Schema for collection statistics."
+      },
+      "CollectionTypeEnum": {
+        "type": "string",
+        "enum": [
+          "file",
+          "website",
+          "qa"
+        ],
+        "title": "CollectionTypeEnum",
+        "description": "Enum representing the type/source of a collection.\n\n- file: Collection created from file uploads\n- website: Collection created from website crawling\n- qa: Collection created from question-answer pairs"
+      },
+      "CollectionUpdateRequest": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name",
+            "description": "Human-readable collection name",
+            "examples": [
+              "Product Documentation v2.2"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Collection description",
+            "examples": [
+              "Updated product documentation for RAG knowledge base with new features"
+            ]
+          },
+          "collection_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CollectionTypeEnum"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Type of collection: file, website, or qa",
+            "examples": [
+              "file"
+            ]
+          },
+          "crawl_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crawl Config",
+            "description": "Crawl configuration for website collections. See CollectionCreateRequest for full option list.\n\nCommon options to update:\n- **max_pages**: Maximum number of pages to crawl\n- **max_depth**: Maximum crawl depth from start URL\n- **include_patterns** / **exclude_patterns**: URL filtering patterns\n- **timeout**: Page load timeout in seconds\n- **delay_between_requests**: Delay between requests\n",
+            "examples": [
+              {
+                "delay_between_requests": 2,
+                "exclude_patterns": [
+                  "*/admin/*",
+                  "*/login/*"
+                ],
+                "include_patterns": [
+                  "*/docs/*",
+                  "*/api/*"
+                ],
+                "max_depth": 5,
+                "max_pages": 200
+              }
+            ]
+          },
+          "collection_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Metadata",
+            "description": "Collection metadata (embedding model, chunk size, etc.)",
+            "examples": [
+              {
+                "chunk_overlap": 250,
+                "chunk_size": 1200,
+                "embedding_model": "text-embedding-ada-002",
+                "language": "en"
+              }
+            ]
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Collection tags for categorization and filtering",
+            "examples": [
+              [
+                "documentation",
+                "product",
+                "v2.2",
+                "updated"
+              ]
+            ]
+          }
+        },
+        "type": "object",
+        "title": "CollectionUpdateRequest",
+        "description": "Schema for updating an existing collection."
+      },
+      "CrawlDeeperRequest": {
+        "properties": {
+          "max_depth": {
+            "type": "integer",
+            "maximum": 10,
+            "minimum": 1,
+            "title": "Max Depth",
+            "description": "Maximum crawl depth from this page",
+            "default": 3
+          },
+          "include_patterns": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Include Patterns",
+            "description": "URL patterns to include (fnmatch style)"
+          },
+          "exclude_patterns": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Patterns",
+            "description": "URL patterns to exclude (fnmatch style)"
+          }
+        },
+        "type": "object",
+        "title": "CrawlDeeperRequest",
+        "description": "Schema for deep crawl request from an existing page."
+      },
+      "CrawlDeeperResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the operation was successful"
+          },
+          "source_page_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Source Page Id",
+            "description": "ID of the source page"
+          },
+          "pages_added": {
+            "type": "integer",
+            "title": "Pages Added",
+            "description": "Number of new pages added to crawl queue"
+          },
+          "pages_skipped": {
+            "type": "integer",
+            "title": "Pages Skipped",
+            "description": "Number of pages skipped (already exists or crawling)"
+          },
+          "links_found": {
+            "type": "integer",
+            "title": "Links Found",
+            "description": "Total number of links found in the page"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Status message"
+          },
+          "added_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Added Urls",
+            "description": "URLs that were added to crawl queue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "source_page_id",
+          "pages_added",
+          "pages_skipped",
+          "links_found",
+          "message"
+        ],
+        "title": "CrawlDeeperResponse",
+        "description": "Schema for deep crawl response."
+      },
+      "CrawlOptionsSchema": {
+        "properties": {
+          "render_js": {
+            "type": "boolean",
+            "title": "Render Js",
+            "description": "Whether to render JavaScript (uses headless browser)",
+            "default": false
+          },
+          "respect_robots_txt": {
+            "type": "boolean",
+            "title": "Respect Robots Txt",
+            "description": "Whether to respect robots.txt rules",
+            "default": true
+          },
+          "delay_seconds": {
+            "type": "number",
+            "maximum": 60,
+            "minimum": 0,
+            "title": "Delay Seconds",
+            "description": "Delay between requests in seconds",
+            "default": 1
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent",
+            "description": "Custom user agent string"
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "maximum": 300,
+            "minimum": 5,
+            "title": "Timeout Seconds",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "headers": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headers",
+            "description": "Custom HTTP headers"
+          }
+        },
+        "type": "object",
+        "title": "CrawlOptionsSchema",
+        "description": "Schema for crawl configuration options."
+      },
+      "CrawlProgressSchema": {
+        "properties": {
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Total Pages",
+            "description": "Total number of pages in collection"
+          },
+          "pages_pending": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Pages Pending",
+            "description": "Number of pages pending crawl"
+          },
+          "pages_crawled": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Pages Crawled",
+            "description": "Number of pages successfully crawled"
+          },
+          "pages_processed": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Pages Processed",
+            "description": "Number of pages processed into documents"
+          },
+          "pages_processing": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Pages Processing",
+            "description": "Number of pages currently being processed"
+          },
+          "pages_failed": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Pages Failed",
+            "description": "Number of pages that failed to process"
+          },
+          "progress_percent": {
+            "type": "number",
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Progress Percent",
+            "description": "Overall progress percentage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_pages",
+          "pages_pending",
+          "pages_crawled",
+          "pages_processed",
+          "pages_processing",
+          "pages_failed",
+          "progress_percent"
+        ],
+        "title": "CrawlProgressSchema",
+        "description": "Schema for collection crawl progress (computed from pages)."
+      },
+      "EmbeddingConfigBatchSyncRequest": {
+        "properties": {
+          "configs": {
+            "items": {
+              "$ref": "#/components/schemas/EmbeddingConfigCreate"
+            },
+            "type": "array",
+            "title": "Configs",
+            "description": "List of configurations to upsert"
+          }
+        },
+        "type": "object",
+        "required": [
+          "configs"
+        ],
+        "title": "EmbeddingConfigBatchSyncRequest",
+        "description": "Request body for batch syncing embedding configurations."
+      },
+      "EmbeddingConfigBatchSyncResponse": {
+        "properties": {
+          "success_count": {
+            "type": "integer",
+            "title": "Success Count",
+            "description": "Number of successfully processed configurations"
+          },
+          "failed_count": {
+            "type": "integer",
+            "title": "Failed Count",
+            "description": "Number of configurations that failed to process"
+          },
+          "errors": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Errors",
+            "description": "List of error details per failed item"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success_count",
+          "failed_count"
+        ],
+        "title": "EmbeddingConfigBatchSyncResponse",
+        "description": "Response for batch sync indicating successes and failures."
+      },
+      "EmbeddingConfigCreate": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "Upstream project ID (not validated against rag_projects)"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "Embedding provider (any string, stored as-is)"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Embedding model name"
+          },
+          "dimensions": {
+            "type": "integer",
+            "title": "Dimensions",
+            "description": "Embedding dimensions; must be 1536 in phase 1",
+            "default": 1536
+          },
+          "batch_size": {
+            "type": "integer",
+            "title": "Batch Size",
+            "description": "Batch size for embedding generation",
+            "default": 10
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "Provider API key (stored as plain text)"
+          },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url",
+            "description": "Provider base URL (for Qwen3 or custom endpoints)"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Whether this config is active; batch sync targets active config",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "provider",
+          "model"
+        ],
+        "title": "EmbeddingConfigCreate",
+        "description": "Schema for creating/upserting an embedding configuration entry."
+      },
+      "EmbeddingConfigResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "dimensions": {
+            "type": "integer",
+            "title": "Dimensions"
+          },
+          "batch_size": {
+            "type": "integer",
+            "title": "Batch Size"
+          },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "provider",
+          "model",
+          "dimensions",
+          "batch_size",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "EmbeddingConfigResponse",
+        "description": "Schema for returning an embedding configuration (excluding API key for safety)."
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Error",
+            "description": "Error details",
+            "examples": [
+              {
+                "code": "VALIDATION_ERROR",
+                "details": {
+                  "field": "name",
+                  "issue": "Field is required"
+                },
+                "message": "Invalid request data"
+              }
+            ]
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id",
+            "description": "Unique request identifier for tracking"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "description": "Standard error response schema."
+      },
+      "FileListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/FileResponse"
+            },
+            "type": "array",
+            "title": "Data",
+            "description": "List of files"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMetadata",
+            "description": "Pagination metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "pagination"
+        ],
+        "title": "FileListResponse",
+        "description": "Schema for paginated file list responses."
+      },
+      "FileResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "File unique identifier"
+          },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id",
+            "description": "Associated collection ID",
+            "examples": [
+              "coll_123e4567-e89b-12d3-a456-426614174000"
+            ]
+          },
+          "original_filename": {
+            "type": "string",
+            "title": "Original Filename",
+            "description": "Original filename when uploaded",
+            "examples": [
+              "product_manual.pdf"
+            ]
+          },
+          "file_size": {
+            "type": "integer",
+            "title": "File Size",
+            "description": "File size in bytes",
+            "examples": [2048576]
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "description": "MIME type of the file",
+            "examples": [
+              "application/pdf"
+            ]
+          },
+          "storage_provider": {
+            "type": "string",
+            "title": "Storage Provider",
+            "description": "Storage provider used",
+            "examples": [
+              "local",
+              "s3",
+              "gcs",
+              "azure"
+            ]
+          },
+          "storage_path": {
+            "type": "string",
+            "title": "Storage Path",
+            "description": "Path to file in storage system"
+          },
+          "storage_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Metadata",
+            "description": "Storage-specific metadata"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Processing status",
+            "examples": [
+              "pending",
+              "processing",
+              "completed",
+              "failed",
+              "archived"
+            ]
+          },
+          "document_count": {
+            "type": "integer",
+            "title": "Document Count",
+            "description": "Number of document chunks generated",
+            "examples": [25]
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens",
+            "description": "Total tokens across all document chunks",
+            "examples": [5000]
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "Detected or specified language",
+            "examples": [
+              "en",
+              "es",
+              "fr"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional file description"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "File tags for categorization and filtering",
+            "examples": [
+              [
+                "document",
+                "manual",
+                "pdf"
+              ]
+            ]
+          },
+          "uploaded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploaded By",
+            "description": "User who uploaded the file"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "File upload timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "File last update timestamp"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "File deletion timestamp (if soft deleted)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "original_filename",
+          "file_size",
+          "content_type",
+          "storage_provider",
+          "storage_path",
+          "status",
+          "document_count",
+          "total_tokens",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "FileResponse",
+        "description": "Schema for file API responses."
+      },
+      "FileUploadError": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename",
+            "description": "Original filename that failed to upload"
+          },
+          "error_code": {
+            "type": "string",
+            "title": "Error Code",
+            "description": "Error code",
+            "examples": [
+              "FILE_TOO_LARGE",
+              "UNSUPPORTED_TYPE",
+              "INVALID_FILE"
+            ]
+          },
+          "error_message": {
+            "type": "string",
+            "title": "Error Message",
+            "description": "Detailed error message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "error_code",
+          "error_message"
+        ],
+        "title": "FileUploadError",
+        "description": "Schema for file upload error details."
+      },
+      "FileUploadResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "File unique identifier"
+          },
+          "original_filename": {
+            "type": "string",
+            "title": "Original Filename",
+            "description": "Original filename"
+          },
+          "file_size": {
+            "type": "integer",
+            "title": "File Size",
+            "description": "File size in bytes"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "description": "MIME type of the file"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Initial processing status",
+            "examples": [
+              "pending"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Upload status message",
+            "examples": [
+              "File uploaded successfully and queued for processing"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "original_filename",
+          "file_size",
+          "content_type",
+          "status",
+          "message"
+        ],
+        "title": "FileUploadResponse",
+        "description": "Schema for file upload responses."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Overall health status",
+            "examples": [
+              "healthy",
+              "unhealthy",
+              "degraded"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Application version"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Health check timestamp (ISO format)"
+          },
+          "checks": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Checks",
+            "description": "Individual health check results",
+            "examples": [
+              {
+                "database": {
+                  "response_time_ms": 15,
+                  "status": "healthy"
+                },
+                "redis": {
+                  "response_time_ms": 5,
+                  "status": "healthy"
+                },
+                "vector_db": {
+                  "response_time_ms": 25,
+                  "status": "healthy"
+                }
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "timestamp",
+          "checks"
+        ],
+        "title": "HealthResponse",
+        "description": "Health check response schema."
+      },
+      "MetricsResponse": {
+        "properties": {
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics",
+            "description": "Application metrics",
+            "examples": [
+              {
+                "active_connections": 25,
+                "documents_processed": 5678,
+                "embeddings_generated": 9012,
+                "requests_per_second": 12.5,
+                "requests_total": 1234,
+                "response_time_p95": 150
+              }
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Metrics collection timestamp (ISO format)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metrics",
+          "timestamp"
+        ],
+        "title": "MetricsResponse",
+        "description": "Metrics response schema."
+      },
+      "PaginationMetadata": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Total",
+            "description": "Total number of items available"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Limit",
+            "description": "Number of items requested"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Offset",
+            "description": "Number of items skipped"
+          },
+          "has_next": {
+            "type": "boolean",
+            "title": "Has Next",
+            "description": "Whether there are more items available"
+          },
+          "has_prev": {
+            "type": "boolean",
+            "title": "Has Prev",
+            "description": "Whether there are previous items available"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "has_next",
+          "has_prev"
+        ],
+        "title": "PaginationMetadata",
+        "description": "Pagination metadata for list responses."
+      },
+      "QACategoryListResponse": {
+        "properties": {
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories",
+            "description": "List of unique categories"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total count of categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "categories",
+          "total"
+        ],
+        "title": "QACategoryListResponse",
+        "description": "Schema for QA category list response."
+      },
+      "QAPairBatchCreateRequest": {
+        "properties": {
+          "qa_pairs": {
+            "items": {
+              "$ref": "#/components/schemas/QAPairCreateRequest"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Qa Pairs",
+            "description": "List of QA pairs to create (max 1000)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "qa_pairs"
+        ],
+        "title": "QAPairBatchCreateRequest",
+        "description": "Schema for batch creating QA pairs."
+      },
+      "QAPairBatchCreateResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether operation succeeded"
+          },
+          "created_count": {
+            "type": "integer",
+            "title": "Created Count",
+            "description": "Number of QA pairs created"
+          },
+          "skipped_count": {
+            "type": "integer",
+            "title": "Skipped Count",
+            "description": "Number skipped (duplicates)"
+          },
+          "failed_count": {
+            "type": "integer",
+            "title": "Failed Count",
+            "description": "Number failed"
+          },
+          "created_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Created Ids",
+            "description": "Created QA pair IDs"
+          },
+          "errors": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Errors",
+            "description": "Error details"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Summary message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "created_count",
+          "skipped_count",
+          "failed_count",
+          "message"
+        ],
+        "title": "QAPairBatchCreateResponse",
+        "description": "Schema for batch create response."
+      },
+      "QAPairCreateRequest": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Question",
+            "description": "The question text",
+            "examples": [
+              "如何重置密码？"
+            ]
+          },
+          "answer": {
+            "type": "string",
+            "maxLength": 50000,
+            "minLength": 1,
+            "title": "Answer",
+            "description": "The answer text",
+            "examples": [
+              "您可以通过以下步骤重置密码：1. 点击登录页面的'忘记密码'..."
+            ]
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "Category for organizing QA pairs",
+            "examples": [
+              "账户管理"
+            ]
+          },
+          "subcategory": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subcategory",
+            "description": "Subcategory for finer organization",
+            "examples": [
+              "密码相关"
+            ]
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Tags for filtering and search",
+            "examples": [
+              [
+                "密码",
+                "重置",
+                "账户"
+              ]
+            ]
+          },
+          "qa_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qa Metadata",
+            "description": "Additional metadata",
+            "examples": [
+              {
+                "source": "user_manual",
+                "version": "2.0"
+              }
+            ]
+          },
+          "priority": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Priority",
+            "description": "Priority for ordering (0-100, higher = more important)",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "question",
+          "answer"
+        ],
+        "title": "QAPairCreateRequest",
+        "description": "Schema for creating a single QA pair."
+      },
+      "QAPairImportRequest": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "json",
+              "csv"
+            ],
+            "title": "Format",
+            "description": "Import format: json or csv",
+            "default": "json"
+          },
+          "data": {
+            "type": "string",
+            "title": "Data",
+            "description": "JSON array string or CSV content"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "Default category for all imported pairs"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Default tags for all imported pairs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "QAPairImportRequest",
+        "description": "Schema for importing QA pairs from JSON/CSV."
+      },
+      "QAPairListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/QAPairResponse"
+            },
+            "type": "array",
+            "title": "Data",
+            "description": "List of QA pairs"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total count"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Page size"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "Page offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "QAPairListResponse",
+        "description": "Schema for paginated QA pair list responses."
+      },
+      "QAPairResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "QA pair unique identifier"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Collection Id",
+            "description": "Associated collection ID"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question",
+            "description": "The question text"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer",
+            "description": "The answer text"
+          },
+          "question_hash": {
+            "type": "string",
+            "title": "Question Hash",
+            "description": "Question hash for deduplication"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "Category"
+          },
+          "subcategory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subcategory",
+            "description": "Subcategory"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Tags"
+          },
+          "qa_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qa Metadata",
+            "description": "Additional metadata"
+          },
+          "source_type": {
+            "type": "string",
+            "title": "Source Type",
+            "description": "Source type: manual, import, ai_generated"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Processing status"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority",
+            "description": "Priority"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id",
+            "description": "Associated document ID"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Last update timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "collection_id",
+          "question",
+          "answer",
+          "question_hash",
+          "source_type",
+          "status",
+          "priority",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "QAPairResponse",
+        "description": "Schema for QA pair API responses."
+      },
+      "QAPairUpdateRequest": {
+        "properties": {
+          "question": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question",
+            "description": "Updated question text"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer",
+            "description": "Updated answer text"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "subcategory": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subcategory"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "qa_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qa Metadata"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100,
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          }
+        },
+        "type": "object",
+        "title": "QAPairUpdateRequest",
+        "description": "Schema for updating a QA pair."
+      },
+      "SearchMetadata": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query",
+            "description": "Original search query"
+          },
+          "total_results": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Total Results",
+            "description": "Total number of results found"
+          },
+          "returned_results": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Returned Results",
+            "description": "Number of results returned in this response"
+          },
+          "search_time_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Search Time Ms",
+            "description": "Search execution time in milliseconds"
+          },
+          "filters_applied": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters Applied",
+            "description": "Filters that were applied to the search"
+          },
+          "search_type": {
+            "type": "string",
+            "title": "Search Type",
+            "description": "Type of search performed",
+            "default": "semantic",
+            "examples": [
+              "semantic",
+              "keyword",
+              "hybrid"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "total_results",
+          "returned_results",
+          "search_time_ms"
+        ],
+        "title": "SearchMetadata",
+        "description": "Schema for search metadata."
+      },
+      "SearchResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "List of search results"
+          },
+          "search_metadata": {
+            "$ref": "#/components/schemas/SearchMetadata",
+            "description": "Search execution metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results",
+          "search_metadata"
+        ],
+        "title": "SearchResponse",
+        "description": "Schema for search responses."
+      },
+      "SearchResult": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id",
+            "description": "Document unique identifier"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id",
+            "description": "Associated file ID (None for QA pairs)"
+          },
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id",
+            "description": "Associated collection ID"
+          },
+          "relevance_score": {
+            "type": "number",
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Relevance Score",
+            "description": "Relevance score (0-1, higher is more relevant)"
+          },
+          "content_preview": {
+            "type": "string",
+            "title": "Content Preview",
+            "description": "Preview of the document content"
+          },
+          "document_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Title",
+            "description": "Document title or heading"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "description": "Type of content",
+            "examples": [
+              "paragraph",
+              "heading",
+              "table",
+              "list",
+              "code",
+              "image",
+              "metadata"
+            ]
+          },
+          "chunk_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Index",
+            "description": "Index of this chunk within the document"
+          },
+          "page_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Number",
+            "description": "Page number in original document"
+          },
+          "section_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Title",
+            "description": "Section or chapter title"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Document tags and metadata"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Document creation timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "relevance_score",
+          "content_preview",
+          "content_type",
+          "created_at"
+        ],
+        "title": "SearchResult",
+        "description": "Schema for individual search results."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WebsitePageListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/WebsitePageResponse"
+            },
+            "type": "array",
+            "title": "Data",
+            "description": "List of pages"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMetadata",
+            "description": "Pagination metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "pagination"
+        ],
+        "title": "WebsitePageListResponse",
+        "description": "Schema for paginated page list responses."
+      },
+      "WebsitePageResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Page unique identifier"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Collection Id",
+            "description": "Associated collection ID"
+          },
+          "parent_page_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Page Id",
+            "description": "Parent page ID (for hierarchical structure)"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "Page URL"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Page title"
+          },
+          "depth": {
+            "type": "integer",
+            "title": "Depth",
+            "description": "Crawl depth from root page"
+          },
+          "content_length": {
+            "type": "integer",
+            "title": "Content Length",
+            "description": "Content length in characters"
+          },
+          "meta_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Description",
+            "description": "Page meta description"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Page status: pending, crawling, fetched, extracted, processing, processed, failed, skipped"
+          },
+          "crawl_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crawl Source",
+            "description": "How this page was added: initial, discovered, manual, deep_crawl"
+          },
+          "http_status_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status Code",
+            "description": "HTTP response status code"
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Id",
+            "description": "Associated file ID (after processing)"
+          },
+          "discovered_links": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discovered Links",
+            "description": "Links discovered on this page"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message",
+            "description": "Error message if processing failed"
+          },
+          "tree_completed": {
+            "type": "boolean",
+            "title": "Tree Completed",
+            "description": "Whether this page and all its descendant pages have been processed or skipped",
+            "default": false
+          },
+          "has_children": {
+            "type": "boolean",
+            "title": "Has Children",
+            "description": "Whether this page has any child pages",
+            "default": false
+          },
+          "children": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/WebsitePageResponse"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Children",
+            "description": "Child pages (populated when tree_depth \u003E 0)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Page creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Page last update timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "collection_id",
+          "url",
+          "depth",
+          "content_length",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WebsitePageResponse",
+        "description": "Schema for website page API responses."
+      }
+    }
+  }
+}

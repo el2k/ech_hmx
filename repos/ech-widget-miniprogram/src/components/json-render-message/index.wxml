@@ -1,0 +1,25 @@
+<block wx:if="{{hasGroups}}">
+  <block wx:for="{{groups}}" wx:key="index">
+    <!-- Text group -->
+    <view wx:if="{{item.type === 'text' && item.text}}" class="jr-text-group">
+      <markdown-text content="{{item.text}}" />
+      <view wx:if="{{showCursor && index === lastIndex}}" class="cursor"></view>
+    </view>
+    <!-- Spec group -->
+    <json-render-surface
+      wx:elif="{{item.type === 'spec' && item.spec}}"
+      spec="{{item.spec}}"
+      loading="{{showCursor}}"
+      themeColor="{{themeColor}}"
+      bind:sendmessage="onSendMessage"
+    />
+  </block>
+</block>
+
+<!-- Fallback text when no groups -->
+<block wx:elif="{{fallbackText}}">
+  <view class="jr-fallback">
+    <markdown-text content="{{fallbackText}}" />
+    <view wx:if="{{showCursor}}" class="cursor"></view>
+  </view>
+</block>

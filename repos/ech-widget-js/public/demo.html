@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SDK Integration Demo</title>
+    <style>
+      body{margin:0;font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:#111827}
+      header{position:sticky;top:0;background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 16px}
+      main{max-width:880px;margin:24px auto;padding:0 16px}
+      section{margin:28px 0}
+      .hero{background:linear-gradient(135deg,#eef2ff,#f0f9ff);padding:24px;border-radius:12px}
+      .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+      .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;background:#fff}
+      .nav{display:flex;gap:8px;flex-wrap:wrap}
+      .nav button{padding:8px 12px;border:1px solid #e5e7eb;background:#fff;border-radius:8px;cursor:pointer}
+      .nav button.active{background:#111827;color:#fff;border-color:#111827}
+      .actions button{padding:8px 12px;border:1px solid #e5e7eb;background:#fff;border-radius:8px;cursor:pointer}
+
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>TGO Widget SDK Demo</strong>
+    </header>
+    <main>
+      <section class="hero">
+        <h1>Welcome</h1>
+        <p>This page simulates a third-party website integrating the TGO Widget SDK. After the page loads, a customer support widget should appear at the bottom-right corner automatically.</p>
+      </section>
+      <section id="spa-demo">
+        <h2>SPA 路由切换测试</h2>
+        <div class="nav">
+          <button type="button" data-path="./demo-home">首页</button>
+          <button type="button" data-path="./demo-product">产品页</button>
+          <button type="button" data-path="./demo-pricing">定价页</button>
+          <button type="button" data-path="./demo-about">关于页</button>
+        </div>
+        <div id="spa-view" class="card" style="min-height:100px;margin-top:12px;"></div>
+        <div class="actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="btn-custom" type="button">自定义事件测试</button>
+          <button id="btn-form" type="button">表单提交测试</button>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="card"><h3>Feature A</h3><p>Some marketing text...</p></div>
+        <div class="card"><h3>Feature B</h3><p>Some marketing text...</p></div>
+        <div class="card"><h3>Feature C</h3><p>Some marketing text...</p></div>
+      </section>
+      <section>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer posuere erat a ante venenatis dapibus posuere velit aliquet. Cras justo odio, dapibus ac facilisis in, egestas eget quam.</p>
+      </section>
+    </main>
+
+    <script>
+      (function(){
+        try {
+          var p = new URLSearchParams(window.location.search);
+          var k = p.get('api_key') || p.get('apiKey') || p.get('platform_api_key');
+          var s = document.createElement('script');
+          s.src = './tgo-widget-sdk.js' + (k ? ('?api_key=' + encodeURIComponent(k)) : '');
+          s.async = true; document.head.appendChild(s);
+        } catch(_) { /* ignore */ }
+      })();
+      // optional demo controls
+      window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') window.TGOWidget?.hide?.(); });
+
+      (function(){
+        const pages = {
+          './demo-home':    { title: '首页',   body: '欢迎来到首页。这是用于测试 page_view 上报的演示页面。' },
+          './demo-product': { title: '产品页', body: '这是产品页，用于模拟 SPA 路由切换。' },
+          './demo-pricing': { title: '定价页', body: '这是定价页，切换路由后会触发上一页停留时长上报。' },
+          './demo-about':   { title: '关于页', body: '这是关于页，演示进入即上报 + 离开补时长。' }
+        };
+        const view = document.getElementById('spa-view');
+
+        function render(path){
+          if(!pages[path]) path = './demo-home';
+          const p = pages[path];
+          document.title = p.title + ' - SDK Integration Demo';
+          if(view){
+            view.innerHTML = '<h3>'+p.title+'</h3>'+
+              '<p>'+p.body+'</p>'+
+              '<p style="color:#6b7280;font-size:12px">当前 URL: '+location.href+'</p>';
+          }
+          document.querySelectorAll('#spa-demo .nav [data-path]')
+            .forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-path')===path));
+        }
+
+        function navigate(path){ history.pushState({ path }, '', path); render(path); }
+
+        document.getElementById('spa-demo')?.addEventListener('click', function(e){
+          const t = e.target && (e.target.closest ? e.target.closest('[data-path]') : null);
+          if(t){ e.preventDefault(); navigate(t.getAttribute('data-path')); }
+        });
+        window.addEventListener('popstate', function(){ render(location.pathname); });
+
+        // 初始路由（非 pages 范围则替换为 /demo-home）
+        if(!pages[location.pathname]){ history.replaceState({ path:'./demo-home' }, '', './demo-home'); }
+        render(location.pathname);
+
+        // 自定义事件测试按钮
+        document.getElementById('btn-custom')?.addEventListener('click', function(){
+          window.TGOWidget && window.TGOWidget('track', 'custom_event', '测试事件', { context: { test: true } });
+        });
+        document.getElementById('btn-form')?.addEventListener('click', function(){
+          window.TGOWidget && window.TGOWidget('track', 'form_submitted', '测试表单', { context: { form_id: 'test-form' } });
+        });
+      })();
+    </script>
+  </body>
+</html>
+

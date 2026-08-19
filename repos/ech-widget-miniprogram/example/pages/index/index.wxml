@@ -1,0 +1,6 @@
+<view class="container">
+  <view class="card" bindtap="onTapChat">
+    <text class="card-title">在线客服</text>
+    <text class="card-desc">点击进入聊天页面</text>
+  </view>
+</view>

@@ -1,0 +1,60 @@
+name: tgo_widget
+description: A Flutter package for integrating TGO customer service chat widget into your app. Easy to use, customizable, and feature-rich.
+version: 1.0.0
+homepage: https://tgo.ai
+repository: https://github.com/AIDotNet/tgo-widget-flutter
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # WuKongIM SDK for real-time messaging
+  wukong_easy_sdk:
+    git:
+      url: https://github.com/WuKongIM/WuKongEasySDK-Flutter.git
+      ref: main
+  
+  # HTTP client
+  dio: ^5.4.0
+  
+  # Local storage
+  shared_preferences: ^2.2.2
+  
+  # State management
+  provider: ^6.1.1
+  
+  # Image viewing
+  photo_view: ^0.14.0
+  
+  # File picking
+  file_picker: ^6.1.1
+  image_picker: ^1.0.7
+  
+  # URL launcher for links
+  url_launcher: ^6.2.2
+  
+  # Markdown rendering
+  markdown_widget: ^2.3.2
+  
+  # Internationalization
+  intl: ^0.18.1
+
+  # SVG rendering
+  flutter_svg: ^2.0.10+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/logo.svg
+    - assets/images/
+

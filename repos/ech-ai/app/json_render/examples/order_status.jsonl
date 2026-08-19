@@ -1,0 +1,22 @@
+{"op":"add","path":"/root","value":"order-card"}
+{"op":"add","path":"/elements","value":{}}
+{"op":"add","path":"/elements/order-card","value":{"type":"Card","props":{"variant":"order"},"children":["order-header","header-divider","shipping-section","items-section","payment-section","action-buttons"]}}
+{"op":"add","path":"/elements/order-header","value":{"type":"Row","props":{"justify":"between","align":"center"},"children":["order-title","order-status"]}}
+{"op":"add","path":"/elements/order-title","value":{"type":"Text","props":{"variant":"title","text":"订单号：ORD-2026-000128"}}}
+{"op":"add","path":"/elements/order-status","value":{"type":"Badge","props":{"tone":"success","label":"已发货"}}}
+{"op":"add","path":"/elements/header-divider","value":{"type":"Divider","props":{}}}
+{"op":"add","path":"/elements/shipping-section","value":{"type":"Section","props":{"title":"收货信息"},"children":["receiver","address"]}}
+{"op":"add","path":"/elements/receiver","value":{"type":"KV","props":{"label":"联系人","value":"王先生 13800138000"}}}
+{"op":"add","path":"/elements/address","value":{"type":"KV","props":{"label":"收货地址","value":"北京市朝阳区建国门外大街1号"}}}
+{"op":"add","path":"/elements/items-section","value":{"type":"Section","props":{"title":"商品详情"},"children":["item-1","item-2"]}}
+{"op":"add","path":"/elements/item-1","value":{"type":"OrderItem","props":{"name":"iPhone 15 Pro Max 256GB","sku":"APPLE-IP15PM-256","quantity":"1","subtotal":"¥8,999.00"}}}
+{"op":"add","path":"/elements/item-2","value":{"type":"OrderItem","props":{"name":"AirPods Pro (第二代)","sku":"APPLE-AIRPODS-PRO2","quantity":"1","subtotal":"¥1,899.00"}}}
+{"op":"add","path":"/elements/payment-section","value":{"type":"Section","props":{"title":"支付信息"},"children":["subtotal","shipping","discount","payable"]}}
+{"op":"add","path":"/elements/subtotal","value":{"type":"PriceRow","props":{"label":"商品总额","value":"¥10,898.00"}}}
+{"op":"add","path":"/elements/shipping","value":{"type":"PriceRow","props":{"label":"运费","value":"¥0.00"}}}
+{"op":"add","path":"/elements/discount","value":{"type":"PriceRow","props":{"label":"优惠","value":"-¥200.00","discount":true}}}
+{"op":"add","path":"/elements/payable","value":{"type":"PriceRow","props":{"label":"实付金额","value":"¥10,698.00","emphasis":true}}}
+{"op":"add","path":"/elements/action-buttons","value":{"type":"ButtonGroup","props":{},"children":["btn-detail","btn-edit","btn-print"]}}
+{"op":"add","path":"/elements/btn-detail","value":{"type":"Button","props":{"label":"查看详情","variant":"primary"},"on":{"press":{"action":"order_detail","params":{"orderId":"ORD-2026-000128"}}}}}
+{"op":"add","path":"/elements/btn-edit","value":{"type":"Button","props":{"label":"编辑订单"},"on":{"press":{"action":"order_edit","params":{"orderId":"ORD-2026-000128"}}}}}
+{"op":"add","path":"/elements/btn-print","value":{"type":"Button","props":{"label":"打印订单"},"on":{"press":{"action":"order_print","params":{"orderId":"ORD-2026-000128"}}}}}

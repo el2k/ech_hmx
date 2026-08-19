@@ -1,0 +1,6 @@
+<tgo-chat
+  api-key="ak_live_LUa5WyH6aGj7YcsEznKUDr8Xe3sj83u0"
+  api-base="http://localhost:8000"
+  theme-color="#2f80ed"
+  lang="zh"
+/>

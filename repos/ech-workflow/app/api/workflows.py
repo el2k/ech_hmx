@@ -1,0 +1,254 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database import get_db
+from app.services.workflow_service import WorkflowService
+from app.services.validation_service import ValidationService
+from app.schemas.workflow import (
+    WorkflowCreate, WorkflowUpdate, WorkflowInDB, WorkflowSummary, 
+    WorkflowValidationResponse, WorkflowValidateRequest, WorkflowDuplicateRequest,
+    WorkflowVariablesResponse, NodeVariables, WorkflowVariable,
+    WorkflowBatchInfo, WorkflowInputParameter
+)
+from app.schemas.common import PaginatedResponse, PaginationInfo
+from typing import List, Optional
+
+router = APIRouter()
+
+@router.get("/", response_model=PaginatedResponse[WorkflowSummary])
+async def get_workflows(
+    project_id: str = Query(..., description="Project ID"),
+    skip: int = 0,
+    limit: int = 100,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    tags: Optional[List[str]] = Query(None),
+    sort_by: str = "updated_at",
+    sort_order: str = "desc",
+    db: AsyncSession = Depends(get_db)
+):
+    workflows, total = await WorkflowService.get_all(
+        db, 
+        project_id=project_id,
+        skip=skip, 
+        limit=limit, 
+        status=status,
+        search=search,
+        tags=tags,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
+    
+    return PaginatedResponse(
+        data=workflows,
+        pagination=PaginationInfo(
+            total=total,
+            limit=limit,
+            offset=skip,
+            has_next=total > skip + limit,
+            has_prev=skip > 0
+        )
+    )
+
+@router.post("/", response_model=WorkflowInDB, status_code=status.HTTP_201_CREATED)
+async def create_workflow(
+    workflow_in: WorkflowCreate,
+    project_id: str = Query(..., description="Project ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    return await WorkflowService.create(db, project_id, workflow_in)
+
+@router.get("/batch", response_model=List[WorkflowBatchInfo])
+async def get_workflows_batch(
+    workflow_ids: List[str] = Query(..., description="List of workflow IDs"),
+    project_id: str = Query(..., description="Project ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get basic information for multiple workflows by their IDs, including input parameters.
+    This is useful for agents to understand what parameters are required to execute each workflow.
+    """
+    workflows = await WorkflowService.get_by_ids(db, project_id, workflow_ids)
+    
+    result = []
+    for workflow in workflows:
+        # Extract input parameters from input node
+        input_parameters = []
+        nodes = workflow.definition.get("nodes", [])
+        for node in nodes:
+            if node.get("type") == "input":
+                node_data = node.get("data", {})
+                for var in node_data.get("input_variables", []):
+                    input_parameters.append(WorkflowInputParameter(
+                        name=var.get("name", ""),
+                        type=var.get("type", "string"),
+                        description=var.get("description"),
+                        required=var.get("required", True),
+                        default=var.get("default")
+                    ))
+                break  # Only process the first input node
+        
+        result.append(WorkflowBatchInfo(
+            id=workflow.id,
+            project_id=workflow.project_id,
+            name=workflow.name,
+            description=workflow.description,
+            tags=workflow.tags,
+            status=workflow.status,
+            version=workflow.version,
+            updated_at=workflow.updated_at,
+            input_parameters=input_parameters
+        ))
+    
+    return result
+
+@router.get("/{workflow_id}", response_model=WorkflowInDB)
+async def get_workflow(
+    workflow_id: str,
+    project_id: str = Query(..., description="Project ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    workflow = await WorkflowService.get_by_id(db, workflow_id, project_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return workflow
+
+@router.put("/{workflow_id}", response_model=WorkflowInDB)
+async def update_workflow(
+    workflow_id: str,
+    workflow_in: WorkflowUpdate,
+    project_id: str = Query(..., description="Project ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    workflow = await WorkflowService.update(db, workflow_id, project_id, workflow_in)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return workflow
+
+@router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_workflow(
+    workflow_id: str,
+    project_id: str = Query(..., description="Project ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    success = await WorkflowService.delete(db, workflow_id, project_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+@router.post("/{workflow_id}/duplicate", response_model=WorkflowInDB)
+async def duplicate_workflow(
+    workflow_id: str,
+    project_id: str = Query(..., description="Project ID"),
+    request: Optional[WorkflowDuplicateRequest] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    new_name = request.name if request else None
+    workflow = await WorkflowService.duplicate(db, workflow_id, project_id, new_name)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    return workflow
+
+@router.post("/validate", response_model=WorkflowValidationResponse)
+async def validate_workflow_generic(
+    request: WorkflowValidateRequest,
+    project_id: str = Query(..., description="Project ID")
+):
+    definition = {
+        "nodes": [node.model_dump() for node in request.nodes],
+        "edges": [edge.model_dump() for edge in request.edges]
+    }
+    errors = ValidationService.validate_workflow(definition)
+    return WorkflowValidationResponse(valid=len(errors) == 0, errors=errors)
+
+@router.post("/{workflow_id}/validate", response_model=WorkflowValidationResponse)
+async def validate_workflow(
+    workflow_id: str,
+    project_id: str = Query(..., description="Project ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    workflow = await WorkflowService.get_by_id(db, workflow_id, project_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    errors = ValidationService.validate_workflow(workflow.definition)
+    return WorkflowValidationResponse(valid=len(errors) == 0, errors=errors)
+
+@router.post("/{workflow_id}/publish", response_model=WorkflowInDB)
+async def publish_workflow(
+    workflow_id: str,
+    project_id: str = Query(..., description="Project ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    workflow = await WorkflowService.get_by_id(db, workflow_id, project_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    # Validate before publishing
+    errors = ValidationService.validate_workflow(workflow.definition)
+    if errors:
+        raise HTTPException(
+            status_code=400, 
+            detail={"message": "Workflow validation failed", "errors": errors}
+        )
+        
+    updated_workflow = await WorkflowService.publish(db, workflow_id, project_id)
+    return updated_workflow
+
+@router.get("/{workflow_id}/variables", response_model=WorkflowVariablesResponse)
+async def get_workflow_variables(
+    workflow_id: str,
+    project_id: str = Query(..., description="Project ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    workflow = await WorkflowService.get_by_id(db, workflow_id, project_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    nodes = workflow.definition.get("nodes", [])
+    node_vars = []
+    
+    for node in nodes:
+        node_type = node.get("type")
+        node_data = node.get("data", {})
+        ref_key = node_data.get("reference_key")
+        
+        outputs = []
+        if node_type == "input":
+            for var in node_data.get("input_variables", []):
+                outputs.append(WorkflowVariable(
+                    name=var.get("name"),
+                    type=var.get("type"),
+                    description=var.get("description")
+                ))
+        elif node_type == "webhook":
+            outputs.append(WorkflowVariable(name="body", type="object", description="Webhook request body"))
+            outputs.append(WorkflowVariable(name="params", type="object", description="Webhook query parameters"))
+            outputs.append(WorkflowVariable(name="headers", type="object", description="Webhook request headers"))
+        elif node_type == "timer":
+            outputs.append(WorkflowVariable(name="timestamp", type="string", description="Execution timestamp"))
+        elif node_type == "event":
+            outputs.append(WorkflowVariable(name="data", type="object", description="Event data"))
+        elif node_type == "llm":
+            outputs.append(WorkflowVariable(name="text", type="string", description="LLM output text"))
+        elif node_type == "agent":
+            outputs.append(WorkflowVariable(name="text", type="string", description="Agent output text"))
+        elif node_type == "tool":
+            outputs.append(WorkflowVariable(name="result", type="any", description="Tool execution result"))
+        elif node_type == "api":
+            outputs.append(WorkflowVariable(name="body", type="object", description="API response body"))
+            outputs.append(WorkflowVariable(name="status_code", type="number", description="HTTP status code"))
+            outputs.append(WorkflowVariable(name="headers", type="object", description="API response headers"))
+        elif node_type == "classifier":
+            outputs.append(WorkflowVariable(name="category_id", type="string", description="Matched category ID"))
+            outputs.append(WorkflowVariable(name="category_name", type="string", description="Matched category name"))
+            
+        if outputs:
+            node_vars.append(NodeVariables(
+                node_id=node.get("id"),
+                reference_key=ref_key,
+                node_type=node_type,
+                node_label=node_data.get("label"),
+                outputs=outputs
+            ))
+            
+    return WorkflowVariablesResponse(variables=node_vars)
+

@@ -1,0 +1,36 @@
+{
+  "name": "tgo-widget-miniprogram",
+  "version": "1.1.1",
+  "description": "TGO visitor chat widget for WeChat Mini Program",
+  "miniprogram": "miniprogram_dist",
+  "main": "miniprogram_dist/chat/index.js",
+  "files": [
+    "miniprogram_dist"
+  ],
+  "scripts": {
+    "build": "node tools/build.js",
+    "ci:pack-npm": "node tools/build.js && cd example && node ci.js pack-npm",
+    "ci:compile": "node tools/build.js && cd example && node ci.js compile",
+    "ci:preview": "node tools/build.js && cd example && node ci.js preview",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "wechat",
+    "miniprogram",
+    "chat",
+    "widget",
+    "tgo"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/cli": "^7.28.6",
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.0",
+    "@json-render/core": "^0.11.0",
+    "easyjssdk": "^2.0.0",
+    "esbuild": "^0.27.3",
+    "marked": "^16.4.1",
+    "miniprogram-ci": "^2.1.26",
+    "zod": "^4.3.6"
+  }
+}

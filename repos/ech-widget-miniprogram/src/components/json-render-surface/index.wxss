@@ -1,0 +1,6 @@
+.json-render-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-top: 8rpx;
+}

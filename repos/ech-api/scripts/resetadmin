@@ -1,0 +1,12 @@
+#!/bin/bash
+# Reset admin password script for Docker container
+# Usage: docker exec tgo-api resetadmin
+
+set -e
+
+# Change to app directory
+cd /app
+
+# Run the Python reset script
+python scripts/reset_admin_password.py
+

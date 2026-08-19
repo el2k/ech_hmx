@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: tgo-api-postgres
+    environment:
+      POSTGRES_DB: tgo_api
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docs/api_service_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tgo_api"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tgo-network
+
+  # Redis (for caching and sessions)
+  redis:
+    image: redis:7-alpine
+    container_name: tgo-api-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tgo-network
+
+  # TGO API Service (Main + Internal)
+  tgo-api:
+    build: .
+    container_name: tgo-api
+    ports:
+      - "8000:8000"  # Main API (requires authentication)
+      - "8001:8001"  # Internal API (no authentication)
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/tgo_api
+      - SECRET_KEY=your-secret-key-here-change-in-production-min-32-chars
+      - REDIS_URL=redis://redis:6379/0
+      - INTERNAL_SERVICE_HOST=0.0.0.0
+      - INTERNAL_SERVICE_PORT=8001
+      - RAG_SERVICE_URL=http://localhost:8001
+      - AI_SERVICE_URL=http://localhost:8002
+      - PLATFORM_SERVICE_URL=http://localhost:8003
+      - WUKONGIM_API_URL=http://localhost:5001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tgo-network
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8888:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+      - ADMINER_DESIGN=pepa-linha-dark
+      - ADMINER_PLUGINS=tables-filter tinymce
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tgo-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  tgo-network:
+    driver: bridge

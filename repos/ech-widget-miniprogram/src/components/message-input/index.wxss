@@ -1,0 +1,56 @@
+.input-bar {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 20rpx;
+  background: #fff;
+  border-top: 1rpx solid #eee;
+}
+
+.btn-icon {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f0f0f0;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
+
+.icon-text {
+  font-size: 36rpx;
+  color: #666;
+  font-weight: bold;
+}
+
+.text-input {
+  flex: 1;
+  height: 72rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  background: #f5f5f5;
+  border-radius: 36rpx;
+  color: #333;
+}
+
+.btn-send {
+  margin-left: 12rpx;
+  padding: 0 28rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 32rpx;
+  flex-shrink: 0;
+}
+
+.btn-send.btn-stop {
+  background-color: #e74c3c !important;
+}
+
+.btn-send-text {
+  font-size: 26rpx;
+  color: #fff;
+  white-space: nowrap;
+}

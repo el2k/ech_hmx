@@ -1,0 +1,10 @@
+<view wx:if="{{hasRoot}}" class="json-render-surface">
+  <json-render-element
+    elementKey="{{spec.root}}"
+    spec="{{spec}}"
+    stateSnapshot="{{stateSnapshot}}"
+    depth="{{0}}"
+    bind:action="onAction"
+    bind:statechange="onStateChange"
+  />
+</view>

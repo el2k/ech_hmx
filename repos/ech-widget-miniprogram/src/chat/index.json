@@ -1,0 +1,7 @@
+{
+  "component": true,
+  "usingComponents": {
+    "message-list": "../components/message-list/index",
+    "message-input": "../components/message-input/index"
+  }
+}

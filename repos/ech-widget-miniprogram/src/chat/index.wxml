@@ -1,0 +1,48 @@
+<view class="tgo-chat">
+  <!-- Header -->
+  <view class="chat-header" style="background-color: {{resolvedThemeColor}};">
+    <image wx:if="{{logoUrl}}" class="header-logo" src="{{logoUrl}}" mode="aspectFit" />
+    <text class="header-title">{{title}}</text>
+    <view wx:if="{{online}}" class="status-dot online"></view>
+    <view wx:else class="status-dot offline"></view>
+  </view>
+
+  <!-- Initializing state -->
+  <view wx:if="{{initializing}}" class="init-loading">
+    <text class="init-text">连接中...</text>
+  </view>
+
+  <!-- Error state -->
+  <view wx:elif="{{error && !messages.length}}" class="init-error">
+    <text class="error-text">{{error}}</text>
+    <view class="retry-btn" bindtap="_init">
+      <text class="retry-text">重试</text>
+    </view>
+  </view>
+
+  <!-- Chat body -->
+  <view wx:else class="chat-body">
+    <message-list
+      messages="{{messages}}"
+      historyLoading="{{historyLoading}}"
+      historyHasMore="{{historyHasMore}}"
+      isStreaming="{{isStreaming}}"
+      themeColor="{{resolvedThemeColor}}"
+      bind:loadmore="onLoadMore"
+      bind:sendmessage="onSendMessage"
+    />
+  </view>
+
+  <!-- Input bar -->
+  <view class="chat-footer">
+    <message-input
+      isStreaming="{{isStreaming}}"
+      streamCanceling="{{streamCanceling}}"
+      themeColor="{{resolvedThemeColor}}"
+      disabled="{{initializing}}"
+      bind:send="onSendMessage"
+      bind:cancel="onCancelStream"
+      bind:image="onChooseImage"
+    />
+  </view>
+</view>

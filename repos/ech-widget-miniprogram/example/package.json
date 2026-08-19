@@ -1,0 +1,20 @@
+{
+  "name": "tgo-widget-miniprogram-example",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "ci:pack-npm": "node ci.js pack-npm",
+    "ci:compile": "node ci.js compile",
+    "ci:preview": "node ci.js preview"
+  },
+  "dependencies": {
+    "@json-render/core": "^0.11.0",
+    "easyjssdk": "^2.0.1",
+    "marked": "^17.0.4",
+    "tgo-widget-miniprogram": "file:..",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "miniprogram-ci": "^2.1.26"
+  }
+}

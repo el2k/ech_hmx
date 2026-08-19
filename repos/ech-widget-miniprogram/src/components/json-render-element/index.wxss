@@ -1,0 +1,450 @@
+/* ====== Text ====== */
+.jr-text {
+  font-size: 28rpx;
+  color: #1a1a1a;
+  line-height: 1.6;
+}
+
+.jr-text-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.jr-text-caption {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.jr-section-title {
+  padding-top: 8rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.jr-text-kv {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.jr-text-kv-label {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.jr-text-kv-value {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1a1a1a;
+  text-align: right;
+}
+
+/* ====== Divider ====== */
+.jr-divider {
+  height: 1rpx;
+  background-color: #e5e5e5;
+  margin: 8rpx 0;
+}
+
+/* ====== Badge ====== */
+.jr-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 24rpx;
+  padding: 4rpx 16rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+}
+
+.jr-badge-info {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.jr-badge-success {
+  background-color: #d1fae5;
+  color: #047857;
+}
+
+.jr-badge-warning {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.jr-badge-danger {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ====== KV ====== */
+.jr-kv {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.jr-kv-highlight {
+  padding-top: 8rpx;
+  border-top: 1rpx solid #e5e5e5;
+}
+
+.jr-kv-label {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.jr-kv-value {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1a1a1a;
+  text-align: right;
+}
+
+.jr-kv-value-highlight {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+/* ====== PriceRow ====== */
+.jr-price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.jr-price-emphasis {
+  padding-top: 8rpx;
+  border-top: 1rpx solid #e5e5e5;
+  margin-top: 4rpx;
+}
+
+.jr-price-label {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.jr-price-label-emphasis {
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.jr-price-value {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1a1a1a;
+  text-align: right;
+}
+
+.jr-price-value-emphasis {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.jr-price-discount {
+  color: #059669;
+  font-weight: 500;
+}
+
+/* ====== OrderItem ====== */
+.jr-order-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid #f0f0f0;
+  background-color: rgba(255, 255, 255, 0.7);
+  padding: 16rpx;
+}
+
+.jr-order-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.jr-order-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1a1a1a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.jr-order-sku {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 4rpx;
+  display: block;
+}
+
+.jr-order-right {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.jr-order-qty {
+  font-size: 24rpx;
+  color: #999;
+  display: block;
+}
+
+.jr-order-price {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  display: block;
+}
+
+/* ====== Image ====== */
+.jr-image {
+  max-width: 100%;
+  border-radius: 12rpx;
+}
+
+/* ====== Button ====== */
+.jr-button {
+  margin-top: 8rpx;
+  padding: 16rpx 32rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  text-align: center;
+  transition: opacity 0.2s;
+}
+
+.jr-button:active {
+  opacity: 0.7;
+}
+
+.jr-button-primary {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.jr-button-danger {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.jr-button-link {
+  background: transparent;
+  color: #2563eb;
+  text-decoration: underline;
+  padding: 8rpx 0;
+}
+
+.jr-button-default {
+  background-color: #ffffff;
+  color: #374151;
+  border: 1rpx solid #e5e5e5;
+}
+
+.jr-button-disabled {
+  opacity: 0.5;
+}
+
+/* ====== ButtonGroup ====== */
+.jr-button-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+/* ====== Card ====== */
+.jr-card {
+  border-radius: 24rpx;
+  border: 1rpx solid #e5e5e5;
+  padding: 24rpx;
+  background-color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.jr-card-order {
+  border-color: #dbeafe;
+  background: linear-gradient(to bottom, #ffffff, rgba(219, 234, 254, 0.4));
+}
+
+/* ====== Section ====== */
+.jr-section {
+  border-radius: 16rpx;
+  border: 1rpx solid #f0f0f0;
+  background-color: rgba(249, 250, 251, 0.7);
+  padding: 16rpx;
+}
+
+.jr-section-header {
+  margin-bottom: 8rpx;
+}
+
+.jr-section-title-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.jr-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.jr-section-body-with-title {
+  margin-top: 12rpx;
+}
+
+/* ====== Row ====== */
+.jr-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.jr-row-justify-start { justify-content: flex-start; }
+.jr-row-justify-center { justify-content: center; }
+.jr-row-justify-end { justify-content: flex-end; }
+.jr-row-justify-between { justify-content: space-between; }
+
+.jr-row-align-start { align-items: flex-start; }
+.jr-row-align-center { align-items: center; }
+.jr-row-align-end { align-items: flex-end; }
+
+.jr-row-gap-sm { gap: 6rpx; }
+.jr-row-gap-md { gap: 16rpx; }
+.jr-row-gap-lg { gap: 24rpx; }
+
+.jr-row-wrap { flex-wrap: wrap; }
+
+/* ====== Column ====== */
+.jr-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.jr-col-gap-sm { gap: 6rpx; }
+.jr-col-gap-md { gap: 16rpx; }
+.jr-col-gap-lg { gap: 24rpx; }
+
+/* ====== Input ====== */
+.jr-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.jr-input-label {
+  font-size: 28rpx;
+  color: #374151;
+}
+
+.jr-input {
+  border: 1rpx solid #d1d5db;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  background-color: #ffffff;
+}
+
+/* ====== Checkbox ====== */
+.jr-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.jr-checkbox-box {
+  width: 36rpx;
+  height: 36rpx;
+  border: 2rpx solid #d1d5db;
+  border-radius: 6rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.jr-checkbox-checked {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.jr-checkbox-mark {
+  font-size: 24rpx;
+  color: #ffffff;
+}
+
+.jr-checkbox-label {
+  font-size: 28rpx;
+  color: #374151;
+}
+
+/* ====== MultipleChoice ====== */
+.jr-mc-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.jr-mc-label {
+  font-size: 28rpx;
+  color: #374151;
+}
+
+.jr-mc-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1rpx solid #d1d5db;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  background-color: #ffffff;
+}
+
+.jr-mc-arrow {
+  font-size: 20rpx;
+  color: #999;
+}
+
+/* ====== DateTimeInput ====== */
+.jr-dt-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.jr-dt-label {
+  font-size: 28rpx;
+  color: #374151;
+}
+
+.jr-dt-picker {
+  border: 1rpx solid #d1d5db;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  background-color: #ffffff;
+}
+
+/* ====== Unknown / fallback ====== */
+.jr-unknown {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.jr-too-deep {
+  font-size: 24rpx;
+  color: #999;
+}

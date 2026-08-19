@@ -1,0 +1,3 @@
+<view class="system-message">
+  <text class="system-text">{{content}}</text>
+</view>

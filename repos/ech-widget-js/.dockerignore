@@ -1,0 +1,30 @@
+.git
+.gitignore
+**/node_modules
+**/.cache
+**/dist
+**/build
+coverage
+.npm
+.yarn
+.pnpm-store
+
+.env
+.env.*
+*.log
+logs/
+.DS_Store
+.vscode
+.idea
+
+# Docker artefacts
+Dockerfile*
+docker-compose*.yml
+
+# Tests & docs (not needed in runtime image)
+tests/
+__tests__/
+storybook/
+docs/
+examples/
+

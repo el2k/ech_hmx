@@ -1,0 +1,265 @@
+"""FastAPI application entry point for TGO Device Control Service."""
+
+import asyncio
+import json
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response
+
+from app.config import settings
+from app.core.logging import setup_logging, startup_log
+
+# Setup logging
+setup_logging()
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Application lifespan manager."""
+    # Startup logic
+    from app.services.tcp_connection_manager import tcp_connection_manager
+    from app.services.tcp_rpc_server import tcp_rpc_server
+
+    startup_log("=" * 64)
+    startup_log("  TGO Device Control Service Starting...")
+    startup_log("=" * 64)
+
+    # Debug: Log configuration
+    startup_log(f"[DEBUG] Configuration:")
+    startup_log(f"[DEBUG]   HTTP HOST: {settings.HOST}")
+    startup_log(f"[DEBUG]   HTTP PORT: {settings.PORT}")
+    startup_log(f"[DEBUG]   TCP_RPC_HOST: {settings.TCP_RPC_HOST}")
+    startup_log(f"[DEBUG]   TCP_RPC_PORT: {settings.TCP_RPC_PORT}")
+    startup_log(f"[DEBUG]   REDIS_URL: {settings.REDIS_URL}")
+    startup_log(f"[DEBUG]   DATABASE_URL: {settings.DATABASE_URL[:50]}...")
+    startup_log(f"[DEBUG]   ENVIRONMENT: {settings.ENVIRONMENT}")
+    startup_log(f"[DEBUG]   DEBUG: {settings.DEBUG}")
+    startup_log(f"[DEBUG]   LOG_LEVEL: {settings.LOG_LEVEL}")
+
+    # Initialize TCP connection manager
+    startup_log("[DEBUG] Initializing TCP connection manager...")
+    await tcp_connection_manager.initialize()
+    startup_log("[DEBUG] TCP connection manager initialized")
+
+    # Start TCP RPC server
+    startup_log("[DEBUG] Starting TCP RPC server...")
+    await tcp_rpc_server.start()
+    startup_log("[DEBUG] TCP RPC server started")
+
+    startup_log(f"   HTTP API: http://0.0.0.0:{settings.PORT}")
+    startup_log(f"   TCP RPC: {settings.TCP_RPC_HOST}:{settings.TCP_RPC_PORT}")
+    startup_log(f"   MCP Endpoint: http://0.0.0.0:{settings.PORT}/mcp/{{device_id}}")
+    startup_log(f"   API Docs: http://localhost:{settings.PORT}/docs")
+    startup_log(f"   Health Check: http://localhost:{settings.PORT}/health")
+    startup_log("")
+    startup_log("Device Control Service is ready!")
+    startup_log("=" * 64)
+
+    yield
+
+    # Shutdown logic
+    startup_log("Shutting down Device Control Service...")
+    # 先停止 TCP RPC 服务器，然后关闭 TCP 连接管理器，
+    # 这是因为 TCP RPC 服务器可能仍在处理来自客户端的请求，而这些请求可能依赖于 TCP 连接管理器的功能。
+    # 如果先关闭 TCP 连接管理器，可能会导致正在处理的请求失败或出现异常。
+    # 因此，先停止 TCP RPC 服务器可以确保所有请求都被正确处理完毕，然后再关闭 TCP 连接管理器以释放资源。
+    await tcp_rpc_server.stop()
+    await tcp_connection_manager.shutdown()
+
+
+app = FastAPI(
+    title=settings.SERVICE_NAME,
+    description="Device Control Service for TGO - MCP transparent proxy for remote devices",
+    version=settings.SERVICE_VERSION,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/")
+async def root():
+    """Root endpoint."""
+    return {
+        "service": settings.SERVICE_NAME,
+        "version": settings.SERVICE_VERSION,
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    from app.services.tcp_connection_manager import tcp_connection_manager
+    from app.services.tcp_rpc_server import tcp_rpc_server
+
+    tcp_server_status = "unknown"
+    if tcp_rpc_server.server:
+        tcp_server_status = (
+            "serving" if tcp_rpc_server.server.is_serving() else "not_serving"
+        )
+    else:
+        tcp_server_status = "not_started"
+
+    return {
+        "status": "healthy",
+        "connected_devices": tcp_connection_manager.get_connected_count(),
+        "tcp_server": {
+            "status": tcp_server_status,
+            "host": settings.TCP_RPC_HOST,
+            "port": settings.TCP_RPC_PORT,
+        },
+    }
+
+
+# ------------------------------------------------------------------ #
+#  MCP Streamable HTTP endpoint: /mcp/{device_id}                     #
+# ------------------------------------------------------------------ #
+# 这是一个透明代理接口，允许客户端通过 HTTP POST 请求与远程设备进行通信。
+@app.post("/mcp/{device_id}")
+async def mcp_streamable_http(device_id: str, request: Request):
+    """MCP Streamable HTTP endpoint – transparent proxy to a device.
+
+    Implements the MCP Streamable HTTP transport protocol:
+    - Accepts JSON-RPC 2.0 POST requests
+    - ``initialize`` – returns server capabilities
+    - ``tools/list`` – dynamically fetched from the target device
+    - ``tools/call`` – forwarded to the target device as-is
+
+    The ``device_id`` path parameter determines which connected device
+    to proxy to for the entire MCP session.
+    """
+    from app.services.mcp_server import mcp_proxy
+
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse(
+            {
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": -32700, "message": "Parse error"},
+            },
+            status_code=400,
+        )
+
+    try:
+        response = await mcp_proxy.handle_jsonrpc(device_id, body)
+    except Exception as e:
+        return JSONResponse(
+            {
+                "jsonrpc": "2.0",
+                "id": body.get("id"),
+                "error": {"code": -32603, "message": str(e)},
+            },
+            status_code=500,
+        )
+
+    # Notifications (no ``id``) – acknowledge with 202
+    if response is None:
+        return Response(status_code=202)
+
+    return JSONResponse(response)
+
+
+# ------------------------------------------------------------------ #
+#  REST API routes                                                     #
+# ------------------------------------------------------------------ #
+
+# Include v1 API routes (devices, mcp REST endpoints)
+from app.api.v1 import router as api_v1_router
+
+app.include_router(api_v1_router, prefix="/v1")
+
+# 得到debug状态信息，包括TCP服务器状态、Redis连接状态和当前活动连接列表
+@app.get("/debug/status")
+async def debug_status():
+    """Debug endpoint to check service status and connectivity."""
+    from app.services.tcp_connection_manager import tcp_connection_manager
+    from app.services.tcp_rpc_server import tcp_rpc_server
+    from app.services.bind_code_service import bind_code_service
+    import socket
+
+    result = {
+        "config": {
+            "tcp_rpc_host": settings.TCP_RPC_HOST,
+            "tcp_rpc_port": settings.TCP_RPC_PORT,
+            "http_host": settings.HOST,
+            "http_port": settings.PORT,
+            "redis_url": settings.REDIS_URL,
+            "environment": settings.ENVIRONMENT,
+            "log_level": settings.LOG_LEVEL,
+        },
+        "tcp_server": {},
+        "redis": {},
+        "connections": [],
+    }
+
+    # TCP Server status
+    if tcp_rpc_server.server:
+        result["tcp_server"]["is_serving"] = tcp_rpc_server.server.is_serving()
+        result["tcp_server"]["sockets"] = [
+            str(s.getsockname()) for s in tcp_rpc_server.server.sockets
+        ]
+    else:
+        result["tcp_server"]["is_serving"] = False
+        result["tcp_server"]["error"] = "Server not started"
+
+    # Test TCP port accessibility
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        local_result = sock.connect_ex(("127.0.0.1", settings.TCP_RPC_PORT))
+        sock.close()
+        result["tcp_server"]["local_port_check"] = (
+            "accessible" if local_result == 0 else f"error_code_{local_result}"
+        )
+    except Exception as e:
+        result["tcp_server"]["local_port_check"] = f"error: {e}"
+
+    # Redis connectivity
+    try:
+        await bind_code_service.redis.ping()
+        result["redis"]["status"] = "connected"
+        # List bind codes
+        keys = await bind_code_service.redis.keys("dc:bind_code:*")
+        result["redis"]["active_bind_codes"] = len(keys)
+        result["redis"]["bind_code_keys"] = keys[:10]  # Show first 10
+    except Exception as e:
+        result["redis"]["status"] = f"error: {e}"
+
+    # Active connections
+    connections = tcp_connection_manager.list_connections()
+    result["connections"] = [
+        {
+            "agent_id": c.agent_id,
+            "name": c.name,
+            "version": c.version,
+            "project_id": c.project_id,
+            "connected_at": c.connected_at.isoformat(),
+            "last_seen": c.last_seen.isoformat(),
+        }
+        for c in connections
+    ]
+
+    return result
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "app.main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.is_development,
+    )

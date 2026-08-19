@@ -1,0 +1,8 @@
+{"op":"add","path":"/root","value":"root-column"}
+{"op":"add","path":"/elements","value":{}}
+{"op":"add","path":"/elements/root-column","value":{"type":"Column","props":{},"children":["title","product-1"]}}
+{"op":"add","path":"/elements/title","value":{"type":"Text","props":{"text":"Recommended Products"}}}
+{"op":"add","path":"/elements/product-1","value":{"type":"Card","props":{},"children":["name-1","price-1","btn-1"]}}
+{"op":"add","path":"/elements/name-1","value":{"type":"Text","props":{"text":"Premium Wireless Headphones"}}}
+{"op":"add","path":"/elements/price-1","value":{"type":"Text","props":{"text":"$299.00"}}}
+{"op":"add","path":"/elements/btn-1","value":{"type":"Button","props":{"label":"View Details"},"on":{"press":{"action":"view_detail","params":{"productId":"P001","productName":"Premium Wireless Headphones"}}}}}

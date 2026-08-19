@@ -1,0 +1,8 @@
+node_modules/
+miniprogram_dist/
+private.*.key
+preview-qrcode.png
+example/miniprogram_npm/
+example/node_modules/
+example/package-lock.json
+package-lock.json

@@ -1,0 +1,218 @@
+<block wx:if="{{tooDeep}}">
+  <view class="jr-too-deep"><text>...</text></view>
+</block>
+
+<!-- Text -->
+<block wx:elif="{{elType === 'text'}}">
+  <block wx:if="{{!textContent}}"></block>
+  <view wx:elif="{{isSectionTitle}}" class="jr-section-title">
+    <text>{{textContent}}</text>
+  </view>
+  <view wx:elif="{{isKV}}" class="jr-text-kv">
+    <text class="jr-text-kv-label">{{kvLabel}}</text>
+    <text class="jr-text-kv-value">{{kvValue}}</text>
+  </view>
+  <view wx:elif="{{textVariant === 'caption' || textVariant === 'muted'}}" class="jr-text-caption">
+    <text>{{textContent}}</text>
+  </view>
+  <view wx:elif="{{textVariant === 'title'}}" class="jr-text-title">
+    <text>{{textContent}}</text>
+  </view>
+  <block wx:else>
+    <view class="jr-text"><text>{{textContent}}</text></view>
+  </block>
+</block>
+
+<!-- Divider -->
+<view wx:elif="{{elType === 'divider'}}" class="jr-divider"></view>
+
+<!-- Badge -->
+<block wx:elif="{{elType === 'badge'}}">
+  <view class="jr-badge jr-badge-{{badgeTone}}">
+    <text>{{badgeLabel}}</text>
+  </view>
+</block>
+
+<!-- KV -->
+<block wx:elif="{{elType === 'kv'}}">
+  <view class="jr-kv {{kvHighlight ? 'jr-kv-highlight' : ''}}">
+    <text class="jr-kv-label">{{kvElLabel}}</text>
+    <text class="jr-kv-value {{kvHighlight ? 'jr-kv-value-highlight' : ''}}">{{kvElValue}}</text>
+  </view>
+</block>
+
+<!-- PriceRow -->
+<block wx:elif="{{elType === 'pricerow'}}">
+  <view class="jr-price-row {{priceEmphasis ? 'jr-price-emphasis' : ''}}">
+    <text class="jr-price-label {{priceEmphasis ? 'jr-price-label-emphasis' : ''}}">{{priceLabel}}</text>
+    <text class="jr-price-value {{priceEmphasis ? 'jr-price-value-emphasis' : ''}} {{priceDiscount ? 'jr-price-discount' : ''}}">{{priceValue}}</text>
+  </view>
+</block>
+
+<!-- OrderItem -->
+<block wx:elif="{{elType === 'orderitem'}}">
+  <view class="jr-order-item">
+    <view class="jr-order-info">
+      <text class="jr-order-name">{{orderName}}</text>
+      <text wx:if="{{orderSku}}" class="jr-order-sku">SKU: {{orderSku}}</text>
+    </view>
+    <view class="jr-order-right">
+      <text class="jr-order-qty">x{{orderQty}}</text>
+      <text class="jr-order-price">{{orderPrice}}</text>
+    </view>
+  </view>
+</block>
+
+<!-- Image -->
+<block wx:elif="{{elType === 'image'}}">
+  <image wx:if="{{imageSrc}}" src="{{imageSrc}}" mode="widthFix" class="jr-image" />
+</block>
+
+<!-- Button -->
+<block wx:elif="{{elType === 'button'}}">
+  <view
+    class="jr-button jr-button-{{btnVariant || 'default'}} {{btnDisabled ? 'jr-button-disabled' : ''}}"
+    bindtap="onButtonTap"
+  >
+    <text>{{btnLabel}}</text>
+  </view>
+</block>
+
+<!-- ButtonGroup / Actions -->
+<block wx:elif="{{elType === 'buttongroup'}}">
+  <view class="jr-button-group">
+    <json-render-element
+      wx:for="{{childKeys}}"
+      wx:key="*this"
+      elementKey="{{item}}"
+      spec="{{spec}}"
+      stateSnapshot="{{stateSnapshot}}"
+      depth="{{depth + 1}}"
+      bind:action="onButtonTap"
+      bind:statechange="onInputChange"
+    />
+  </view>
+</block>
+
+<!-- Card -->
+<block wx:elif="{{elType === 'card'}}">
+  <view class="jr-card {{cardVariant === 'order' || cardVariant === 'invoice' ? 'jr-card-order' : ''}}">
+    <json-render-element
+      wx:for="{{childKeys}}"
+      wx:key="*this"
+      elementKey="{{item}}"
+      spec="{{spec}}"
+      stateSnapshot="{{stateSnapshot}}"
+      depth="{{depth + 1}}"
+    />
+  </view>
+</block>
+
+<!-- Section -->
+<block wx:elif="{{elType === 'section'}}">
+  <view class="jr-section">
+    <view wx:if="{{sectionTitle}}" class="jr-section-header">
+      <text class="jr-section-title-text">{{sectionTitle}}</text>
+    </view>
+    <view class="jr-section-body {{sectionTitle ? 'jr-section-body-with-title' : ''}}">
+      <json-render-element
+        wx:for="{{childKeys}}"
+        wx:key="*this"
+        elementKey="{{item}}"
+        spec="{{spec}}"
+        stateSnapshot="{{stateSnapshot}}"
+        depth="{{depth + 1}}"
+      />
+    </view>
+  </view>
+</block>
+
+<!-- Row -->
+<block wx:elif="{{elType === 'row'}}">
+  <view class="jr-row jr-row-justify-{{rowJustify || 'start'}} jr-row-align-{{rowAlign || 'start'}} jr-row-gap-{{rowGap || 'md'}} {{rowWrap ? 'jr-row-wrap' : ''}}">
+    <json-render-element
+      wx:for="{{childKeys}}"
+      wx:key="*this"
+      elementKey="{{item}}"
+      spec="{{spec}}"
+      stateSnapshot="{{stateSnapshot}}"
+      depth="{{depth + 1}}"
+    />
+  </view>
+</block>
+
+<!-- Column / List -->
+<block wx:elif="{{elType === 'column'}}">
+  <view class="jr-column jr-col-gap-{{colGap || 'md'}}">
+    <json-render-element
+      wx:for="{{childKeys}}"
+      wx:key="*this"
+      elementKey="{{item}}"
+      spec="{{spec}}"
+      stateSnapshot="{{stateSnapshot}}"
+      depth="{{depth + 1}}"
+    />
+  </view>
+</block>
+
+<!-- Input -->
+<block wx:elif="{{elType === 'input'}}">
+  <view class="jr-input-wrap">
+    <text wx:if="{{inputLabel}}" class="jr-input-label">{{inputLabel}}</text>
+    <input
+      class="jr-input"
+      value="{{inputValue}}"
+      placeholder="{{inputPlaceholder}}"
+      bindinput="onInputChange"
+    />
+  </view>
+</block>
+
+<!-- Checkbox -->
+<block wx:elif="{{elType === 'checkbox'}}">
+  <view class="jr-checkbox" bindtap="onCheckboxTap">
+    <view class="jr-checkbox-box {{cbChecked ? 'jr-checkbox-checked' : ''}}">
+      <text wx:if="{{cbChecked}}" class="jr-checkbox-mark">\u2713</text>
+    </view>
+    <text class="jr-checkbox-label">{{cbLabel}}</text>
+  </view>
+</block>
+
+<!-- MultipleChoice -->
+<block wx:elif="{{elType === 'multiplechoice'}}">
+  <view class="jr-mc-wrap">
+    <text wx:if="{{mcLabel}}" class="jr-mc-label">{{mcLabel}}</text>
+    <picker mode="selector" range="{{mcOptionLabels}}" value="{{mcIndex}}" bindchange="onPickerChange">
+      <view class="jr-mc-picker">
+        <text>{{mcValue || 'Select'}}</text>
+        <text class="jr-mc-arrow">\u25BC</text>
+      </view>
+    </picker>
+  </view>
+</block>
+
+<!-- DateTimeInput -->
+<block wx:elif="{{elType === 'datetimeinput'}}">
+  <view class="jr-dt-wrap">
+    <text wx:if="{{dtLabel}}" class="jr-dt-label">{{dtLabel}}</text>
+    <picker mode="{{dtMode}}" value="{{dtValue}}" bindchange="onDateChange">
+      <view class="jr-dt-picker">
+        <text>{{dtValue || 'Select'}}</text>
+      </view>
+    </picker>
+  </view>
+</block>
+
+<!-- Unknown / fallback with children -->
+<block wx:elif="{{elType && childKeys.length > 0}}">
+  <view class="jr-unknown">
+    <json-render-element
+      wx:for="{{childKeys}}"
+      wx:key="*this"
+      elementKey="{{item}}"
+      spec="{{spec}}"
+      stateSnapshot="{{stateSnapshot}}"
+      depth="{{depth + 1}}"
+    />
+  </view>
+</block>
